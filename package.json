@@ -1,11 +1,11 @@
 {
-  "name": "jhanavs-math-quest",
+  "name": "dave-and-daniel-math",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun ./dev.js",
-    "test": "bun test",
+    "test": "bun test ./test",
     "build": "bun build.js",
     "e2e": "playwright test"
   },
