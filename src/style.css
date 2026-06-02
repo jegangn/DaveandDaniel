@@ -1261,8 +1261,14 @@ button {
 #stage[data-profile="daniel"] .world-panel {
   background: linear-gradient(180deg, #182A3C 0%, #11202E 100%);
 }
-#stage[data-profile="daniel"] .world-title { color: var(--world-primary); }
+#stage[data-profile="daniel"] .world-title { color: var(--world-primary); font-size: 22px; letter-spacing: 0.02em; }
 #stage[data-profile="daniel"] #screen-map { background: linear-gradient(180deg, #0F1B2A 0%, #0A1320 100%); }
+/* Daniel has 4 worlds — lay them out as one full-height row in landscape
+   (portrait wraps them to 2×2, see the portrait section below). */
+#stage[data-profile="daniel"] .world-grid[data-worlds="4"] {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr;
+}
 
 /* ----- Who's-playing picker ------------------------------------------ */
 #screen-picker {
