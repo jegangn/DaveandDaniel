@@ -12,28 +12,28 @@ test.beforeEach(async ({ page }) => {
 
 test('portrait phone viewport sets data-orient="portrait" on stage', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   const orient = await page.locator('#stage').getAttribute('data-orient');
   expect(orient).toBe('portrait');
 });
 
 test('landscape phone viewport sets data-orient="landscape" on stage', async ({ page }) => {
   await page.setViewportSize(PHONE_LANDSCAPE);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   const orient = await page.locator('#stage').getAttribute('data-orient');
   expect(orient).toBe('landscape');
 });
 
 test('tablet viewport keeps data-orient="landscape" (default)', async ({ page }) => {
   await page.setViewportSize(TABLET_LANDSCAPE);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   const orient = await page.locator('#stage').getAttribute('data-orient');
   expect(orient).toBe('landscape');
 });
 
 test('splash in portrait: title top, mascot middle, play button bottom', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await expect(page.locator('#screen-splash')).toBeVisible();
 
   const title = await page.locator('.splash-title').boundingBox();
@@ -64,7 +64,7 @@ test('splash in portrait: title top, mascot middle, play button bottom', async (
 
 test('world map in portrait: 3 panels stacked vertically (not side-by-side)', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await expect(page.locator('#screen-map')).toBeVisible();
 
@@ -81,7 +81,7 @@ test('world map in portrait: 3 panels stacked vertically (not side-by-side)', as
 
 test('addition level in portrait: worksheet centered, tray pinned bottom, tile >= 44px physical', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 1);
 
@@ -106,7 +106,7 @@ test('addition level in portrait: worksheet centered, tray pinned bottom, tile >
 
 test('mult tap-count in portrait: lily-pads wrap into a 2-wide grid', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'mult', 2); // L2 = 3xN, so the screen has 3 lily-pads
 
@@ -125,7 +125,7 @@ test('mult tap-count in portrait: lily-pads wrap into a 2-wide grid', async ({ p
 
 test('mult drag-groups in portrait: 3 group trays stacked + block pile below', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'mult', 5); // L5 first problem is 3x4 → 3 group trays
 
@@ -144,7 +144,7 @@ test('mult drag-groups in portrait: 3 group trays stacked + block pile below', a
 
 test('complete screen in portrait: 3 buttons stacked vertically', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   // Jump directly to complete via router with mock context
   await page.evaluate(() => {
@@ -165,7 +165,7 @@ test('complete screen in portrait: 3 buttons stacked vertically', async ({ page 
 
 test('settings modal in portrait: fits within viewport width', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.evaluate(() => window.__router.go('settings'));
   await expect(page.locator('#screen-settings')).toBeVisible();
 
@@ -177,7 +177,7 @@ test('settings modal in portrait: fits within viewport width', async ({ page }) 
 
 test('addition carry slot lands above tens cell in portrait', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 3); // L3 has carry on every problem
 
@@ -192,7 +192,7 @@ test('addition carry slot lands above tens cell in portrait', async ({ page }) =
 
 test('drag math works in portrait: dragging a digit tile lands on the active slot', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 1); // L1 problem 1: 12 + 3 = 15
 
@@ -215,7 +215,7 @@ test('drag math works in portrait: dragging a digit tile lands on the active slo
 
 test('rotating from landscape to portrait re-renders active screen', async ({ page }) => {
   await page.setViewportSize(TABLET_LANDSCAPE);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 3);
   await expect(page.locator('#screen-add')).toBeVisible();
@@ -235,7 +235,7 @@ test('rotating from landscape to portrait re-renders active screen', async ({ pa
 
 test('full smoke: iPhone SE can complete addition L1 problem 1 (12+3)', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 1);
   await expect(page.locator('#screen-add')).toBeVisible();
@@ -273,7 +273,7 @@ async function dragValueToSlot(page, value) {
 
 test('mult tap-count ≥10: TOTAL box clears the tray (reported screenshot 1)', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'mult', 3); // 4×N — drive past 4×1, 4×2 to reach 4×3 = 12
   await dragValueToSlot(page, 4);
@@ -294,7 +294,7 @@ test('mult tap-count ≥10: TOTAL box clears the tray (reported screenshot 1)', 
 
 test('mult drag-groups: answer box clears the 16-tile tray', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'mult', 6); // first problem 5×4 = 20 → options 10–20 (16 tiles)
   const ans = await page.locator('.ans-host').boundingBox();
@@ -304,7 +304,7 @@ test('mult drag-groups: answer box clears the 16-tile tray', async ({ page }) =>
 
 test('addition carry on iPhone SE: answer slots clear the tray (reported screenshot 2)', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 3); // carry on every problem → tall two-row tray
   const slot = await page.locator('.slot.active').boundingBox();
@@ -318,7 +318,7 @@ test('addition carry on iPhone SE: answer slots clear the tray (reported screens
 // ---------------------------------------------------------------------------
 test('point 1: dragging a tile does not shift the other tiles', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
   await goToLevel(page, 'add', 1);
   await expect(page.locator('#screen-add')).toBeVisible();

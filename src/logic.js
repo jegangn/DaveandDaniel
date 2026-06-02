@@ -127,38 +127,6 @@ export function starsFor(wrongCount) {
   return 1;
 }
 
-export const KEY_PREFIX = "bm.stars";
-
-export function loadProgress(storage = globalThis.localStorage) {
-  const out = { add: {}, sub: {}, mult: {}, unlockAll: false };
-  if (!storage) return out;
-  for (const w of ["add", "sub", "mult"]) {
-    for (let l = 1; l <= 6; l++) {
-      const v = storage.getItem(`${KEY_PREFIX}.${w}.${l}`);
-      if (v) out[w][l] = parseInt(v, 10);
-    }
-  }
-  out.unlockAll = storage.getItem("bm.unlockAll") === "1";
-  return out;
-}
-
-export function recordStars(storage, world, level, stars) {
-  if (!storage) return;
-  const key = `${KEY_PREFIX}.${world}.${level}`;
-  const prior = parseInt(storage.getItem(key) || "0", 10);
-  if (stars > prior) storage.setItem(key, String(stars));
-}
-
-export function isLevelUnlocked(progress, world, level) {
-  if (progress.unlockAll) return true;
-  if (level === 1) return true;
-  return (progress[world][level - 1] || 0) > 0;
-}
-
-export function totalStars(progress) {
-  let n = 0;
-  for (const w of ["add", "sub", "mult"]) {
-    for (const k in progress[w]) n += progress[w][k];
-  }
-  return n;
-}
+// Progress storage moved to ./progress.js (profile-namespaced save slots).
+// `starsFor` and `isComplete` above stay here — pure math shared by both
+// profiles' screens.

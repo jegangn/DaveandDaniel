@@ -1,19 +1,18 @@
 import { home, star, padlock } from "../svg.js";
-import { loadProgress, isLevelUnlocked, totalStars } from "../logic.js";
+import { isLevelUnlocked, totalStars } from "../progress.js";
+import { PROFILES, worldIdsOf } from "../profiles.js";
 import { sfx } from "../audio.js";
 
-const WORLDS = [
-  { id: "add",  name: "BANANA HILLS"    },
-  { id: "sub",  name: "MISTY RIVER"     },
-  { id: "mult", name: "FIREFLY MEADOW"  },
-];
-
 export function mount(stage, state, router) {
+  const prof = PROFILES[state.profile];
+  const worlds = prof.worlds;
+  const L = prof.levelsPerWorld;
+  const maxStars = worlds.length * L * 3;
+  const progress = state.progress; // freshly loaded by the router before mount
+
   const sec = document.createElement("section");
   sec.className = "screen active";
   sec.id = "screen-map";
-
-  const progress = loadProgress();
 
   const homeBtn = document.createElement("button");
   homeBtn.className = "home-btn";
@@ -23,14 +22,16 @@ export function mount(stage, state, router) {
 
   const meter = document.createElement("div");
   meter.className = "star-meter total display";
-  meter.insertAdjacentHTML("beforeend", `STARS: ${star(true)} ${totalStars(progress)} / 54`);
+  meter.insertAdjacentHTML("beforeend", `STARS: ${star(true)} ${totalStars(progress, worldIdsOf(prof))} / ${maxStars}`);
   sec.appendChild(meter);
 
   const grid = document.createElement("div");
   grid.className = "world-grid";
+  // Expose the world count so the grid can lay out 3 (Dave) or 4 (Daniel) panels.
+  grid.dataset.worlds = String(worlds.length);
   sec.appendChild(grid);
 
-  WORLDS.forEach((w) => {
+  worlds.forEach((w) => {
     const panel = document.createElement("div");
     panel.className = `world-panel world-${w.id}`;
     const worldTitle = document.createElement("h2");
@@ -41,8 +42,8 @@ export function mount(stage, state, router) {
     path.className = "level-path";
     panel.appendChild(path);
 
-    for (let l = 1; l <= 6; l++) {
-      const stars = progress[w.id][l] || 0;
+    for (let l = 1; l <= L; l++) {
+      const stars = progress[w.id]?.[l] || 0;
       const unlocked = isLevelUnlocked(progress, w.id, l);
       const node = document.createElement("button");
       node.className = `level-node ${unlocked ? "unlocked" : "locked"} stars-${stars}`;
@@ -80,7 +81,7 @@ export function mount(stage, state, router) {
     grid.appendChild(panel);
   });
 
-  stage.dataset.world = "add";
+  stage.dataset.world = worlds[0].id;
   stage.appendChild(sec);
   return () => sec.remove();
 }

@@ -1,13 +1,16 @@
-import { starsFor, recordStars } from "../logic.js";
+import { starsFor } from "../logic.js";
+import { recordStars } from "../progress.js";
+import { PROFILES } from "../profiles.js";
 import { revealStars, burstConfetti, mascotCelebrate } from "../animate.js";
 import { sfx } from "../audio.js";
-import { star, banji, mo, pip } from "../svg.js";
+import { star } from "../svg.js";
 
 export function mount(stage, ctx, router) {
-  const { world, level, wrongCount } = ctx;
+  const { world, level, wrongCount, profile } = ctx;
+  const prof = PROFILES[profile];
   stage.dataset.world = world;
   const stars = starsFor(wrongCount);
-  recordStars(localStorage, world, level, stars);
+  recordStars(localStorage, prof.prefix, world, level, stars);
 
   const sec = document.createElement("section");
   sec.className = "screen active";
@@ -27,8 +30,8 @@ export function mount(stage, ctx, router) {
 
   const mascotEl = document.createElement("div");
   mascotEl.className = "complete-mascot";
-  const m = world === "add" ? banji : world === "sub" ? mo : pip;
-  mascotEl.insertAdjacentHTML("beforeend", m("idle"));
+  const mascotFn = prof.completeMascot(world);
+  mascotEl.insertAdjacentHTML("beforeend", mascotFn("idle"));
   sec.appendChild(mascotEl);
 
   const buttons = document.createElement("div");
@@ -44,14 +47,11 @@ export function mount(stage, ctx, router) {
   nextBtn.dataset.act = "next";
   // On the last level NEXT becomes a return-to-map shortcut so the kid
   // isn't stuck looking at a disabled button.
-  const isLastLevel = level >= 6;
+  const isLastLevel = level >= prof.levelsPerWorld;
   nextBtn.textContent = isLastLevel ? "▶ MAP" : "▶ NEXT";
 
   buttons.appendChild(againBtn);
   buttons.appendChild(nextBtn);
-  // On the last level the NEXT button already returns to the map, so the
-  // explicit MAP button is redundant. Show it only when there's a next
-  // level to play.
   if (!isLastLevel) {
     const mapBtn = document.createElement("button");
     mapBtn.className = "btn ghost";

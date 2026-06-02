@@ -1221,3 +1221,121 @@ button {
 #stage[data-orient="portrait"] .settings-card .btn {
   min-width: 280px;
 }
+
+/* ====================================================================== */
+/* ===== DAVE & DANIEL — profile additions ============================== */
+/* ====================================================================== */
+
+/* ----- Daniel: Secret-Agent / Code-Breaker palette ------------------- */
+/* Token NAMES are identical to :root — only VALUES change. The JS reads
+   token values at runtime, so renaming would break it. */
+#stage[data-profile="daniel"] {
+  --bg-paper:#0E1726; --bg-card:#F4E6C8;        /* charcoal-navy base / manila-cream worksheet */
+  --ink:#16242F; --ink-soft:#5A6B7B;
+  --success:#3FE08F; --success-deep:#138A55;    /* decrypt-green */
+  --gentle-no:#FFB23E;                          /* alert-amber (never red) */
+  --star:#FFC02E; --star-glow:#FFE9A6; --lock:#36506A;
+  --world-primary:#37C2D6; --world-accent:#FFB23E; --world-sky:#16263A; --world-ground:#0B1622;
+}
+#stage[data-profile="daniel"][data-world="nadd"] { --world-primary:#37C2D6; --world-accent:#FFB23E; --world-sky:#16263A; --world-ground:#0B1622; }
+#stage[data-profile="daniel"][data-world="nsub"] { --world-primary:#5AA0FF; --world-accent:#37C2D6; --world-sky:#152133; --world-ground:#0B1622; }
+#stage[data-profile="daniel"][data-world="nmul"] { --world-primary:#FFB23E; --world-accent:#37C2D6; --world-sky:#1A2030; --world-ground:#0B1622; }
+#stage[data-profile="daniel"][data-world="ndiv"] { --world-primary:#A98BFF; --world-accent:#3FE08F; --world-sky:#181A30; --world-ground:#0B1622; }
+
+/* Daniel's display face — techy, but MUST keep tabular figures so the
+   column method lines up. tnum is also set globally on body; restated here
+   so it survives the font swap. */
+#stage[data-profile="daniel"] .display,
+#stage[data-profile="daniel"] .worksheet,
+#stage[data-profile="daniel"] .slot,
+#stage[data-profile="daniel"] .tile,
+#stage[data-profile="daniel"] .splash-title,
+#stage[data-profile="daniel"] .picker-name {
+  font-family: 'Chakra Petch', 'Lilita One', system-ui, sans-serif;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+/* Daniel's map title (CLASSIFIED framing) + dark world panels */
+#stage[data-profile="daniel"] .world-add .world-title,
+#stage[data-profile="daniel"] .world-sub .world-title,
+#stage[data-profile="daniel"] .world-mult .world-title { color: var(--world-primary); }
+#stage[data-profile="daniel"] .world-panel {
+  background: linear-gradient(180deg, #182A3C 0%, #11202E 100%);
+}
+#stage[data-profile="daniel"] .world-title { color: var(--world-primary); }
+#stage[data-profile="daniel"] #screen-map { background: linear-gradient(180deg, #0F1B2A 0%, #0A1320 100%); }
+
+/* ----- Who's-playing picker ------------------------------------------ */
+#screen-picker {
+  background: linear-gradient(120deg, #FBEFCD 0%, #FBEFCD 50%, #122033 50%, #0C1726 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 48px;
+}
+.picker-title {
+  font-size: 64px; color: #FFFFFF; margin: 0;
+  text-shadow: 0 3px 0 rgba(0,0,0,.35);
+  letter-spacing: 2px;
+}
+.picker-cards { display: flex; gap: 48px; }
+.picker-card {
+  width: 360px; height: 440px;
+  border: 6px solid var(--ink); border-radius: var(--r-lg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; cursor: pointer; position: relative;
+  box-shadow: var(--sh-3);
+  transition: transform .12s var(--ease-pop), box-shadow .12s var(--ease-pop);
+  -webkit-tap-highlight-color: transparent; outline: 0;
+}
+.picker-card:active { transform: translateY(6px) scale(.99); box-shadow: var(--sh-pressed); }
+.picker-card.jungle {
+  background: linear-gradient(180deg, #FFFBEE 0%, #FFE9A8 100%);
+  border-color: #4A3522;
+}
+.picker-card.spy {
+  background: linear-gradient(180deg, #1B2C3E 0%, #0E1726 100%);
+  border-color: #37C2D6;
+}
+.picker-art { width: 240px; height: 240px; }
+.picker-art svg { width: 100%; height: 100%; }
+.picker-name { font-size: 56px; }
+.picker-card.jungle .picker-name { color: #4A3522; }
+.picker-card.spy .picker-name { color: #EAFBFF; }
+.picker-age {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+  padding: 4px 18px; border-radius: var(--r-pill);
+}
+.picker-card.jungle .picker-age { background: #FFB42E; color: #4A3522; }
+.picker-card.spy .picker-age { background: #37C2D6; color: #0E1726; }
+
+/* ----- Switch-player button on each splash --------------------------- */
+.players-btn {
+  position: absolute; top: 32px; left: 32px; z-index: 40;
+  font-size: 24px; letter-spacing: .04em;
+  padding: 10px 18px; border-radius: var(--r-pill);
+  background: var(--bg-card); color: var(--ink);
+  border: 4px solid var(--ink); box-shadow: var(--sh-1);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; outline: 0;
+}
+
+/* ----- "Mission coming soon" placeholder (pre-Phase-4 Daniel worlds) -- */
+#screen-coming-soon { display: flex; align-items: center; justify-content: center; }
+.coming-soon {
+  text-align: center; display: flex; flex-direction: column; gap: 32px; align-items: center;
+}
+.coming-soon h2 { font-size: 56px; color: var(--ink); margin: 0; }
+
+/* ----- Picker portrait ------------------------------------------------ */
+#stage[data-orient="portrait"] #screen-picker {
+  background: linear-gradient(180deg, #FBEFCD 0%, #FBEFCD 50%, #122033 50%, #0C1726 100%);
+  gap: 28px;
+}
+#stage[data-orient="portrait"] .picker-title { font-size: 44px; }
+#stage[data-orient="portrait"] .picker-cards { flex-direction: column; gap: 24px; }
+#stage[data-orient="portrait"] .picker-card { width: 300px; height: 230px; }
+#stage[data-orient="portrait"] .picker-art { width: 120px; height: 120px; }
+#stage[data-orient="portrait"] .picker-name { font-size: 40px; }
+
+/* Daniel's map: 4 worlds wrap to a 2×2 grid on phones */
+#stage[data-orient="portrait"] .world-grid[data-worlds="4"] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(2, 1fr);
+}

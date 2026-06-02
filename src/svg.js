@@ -389,3 +389,53 @@ export const home = () => `
 
 export const cog = () => `
 <svg viewBox="0 0 48 48" class="icon cog"><g fill="none" stroke="#6A4B28" stroke-width="3"><circle cx="24" cy="24" r="6"/><path d="M24,4 v6 M24,38 v6 M4,24 h6 M38,24 h6 M10,10 l4,4 M34,34 l4,4 M10,38 l4,-4 M34,14 l4,-4"/></g></svg>`;
+
+// ===== Daniel's character: "HANDLER" — a sleek recon-drone / AI ======================
+// Grown-up spy feel, no cartoon face. Group classes (.head .wing-l .wing-r .tail
+// .eye-l) match the engine's transform-origins + celebration animations in
+// animate.js / style.css, so mascotIdle / mascotCheer / mascotCelebrate drive it
+// for free. 200×200 viewBox, parts placed to match `.mascot .* { transform-origin }`.
+export const handler = (state = "idle") => `<svg class="mascot handler ${state}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Handler recon drone">
+<defs>
+  <radialGradient id="hdrLens" cx="50%" cy="42%" r="60%">
+    <stop offset="0%" stop-color="#EAFBFF"/><stop offset="40%" stop-color="#37C2D6"/><stop offset="100%" stop-color="#0E5A66"/>
+  </radialGradient>
+</defs>
+<g class="tail">
+  <path d="M86 150 L 114 150 L 108 178 Q 100 186 92 178 Z" fill="#1B2C3E" stroke="#2E4257" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="100" cy="178" rx="14" ry="5" fill="#37C2D6" opacity="0.55"/>
+  <ellipse cx="100" cy="186" rx="22" ry="6" fill="#37C2D6" opacity="0.18"/>
+</g>
+<g class="wing-l">
+  <path d="M70 108 L 30 96 Q 18 100 22 112 L 64 126 Z" fill="#243447" stroke="#37C2D6" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="26" cy="104" r="5" fill="#FFB23E"/>
+  <circle cx="26" cy="104" r="9" fill="none" stroke="#FFB23E" stroke-width="1.5" opacity="0.5"/>
+</g>
+<g class="wing-r">
+  <path d="M130 108 L 170 96 Q 182 100 178 112 L 136 126 Z" fill="#243447" stroke="#37C2D6" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="174" cy="104" r="5" fill="#FFB23E"/>
+  <circle cx="174" cy="104" r="9" fill="none" stroke="#FFB23E" stroke-width="1.5" opacity="0.5"/>
+</g>
+<g class="body">
+  <path d="M64 96 Q 100 78 136 96 Q 148 118 136 142 Q 100 158 64 142 Q 52 118 64 96 Z" fill="#1B2C3E" stroke="#2E4257" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M72 132 Q 100 144 128 132" stroke="#37C2D6" stroke-width="2" fill="none" opacity="0.6"/>
+  <circle cx="80" cy="138" r="2.5" fill="#3FE08F"/>
+  <circle cx="92" cy="142" r="2.5" fill="#37C2D6"/>
+  <circle cx="108" cy="142" r="2.5" fill="#37C2D6"/>
+  <circle cx="120" cy="138" r="2.5" fill="#FFB23E"/>
+</g>
+<g class="head">
+  <ellipse cx="100" cy="96" rx="40" ry="30" fill="#16242F" stroke="#2E4257" stroke-width="4"/>
+  <g class="eye-l">
+    <circle cx="100" cy="92" r="22" fill="url(#hdrLens)" stroke="#0E5A66" stroke-width="2"/>
+    <circle cx="100" cy="92" r="22" fill="none" stroke="#37C2D6" stroke-width="2" opacity="0.7"/>
+    <circle cx="100" cy="92" r="8" fill="#11202E"/>
+    <circle cx="100" cy="92" r="4" fill="#FFB23E"/>
+    <circle cx="94" cy="85" r="3" fill="#EAFBFF" opacity="0.85"/>
+  </g>
+  <path d="M70 74 Q 100 64 130 74" stroke="#37C2D6" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <rect x="96" y="58" width="8" height="12" rx="2" fill="#2E4257"/>
+  <circle cx="100" cy="56" r="4" fill="#FFB23E"/>
+  <circle cx="100" cy="56" r="7" fill="none" stroke="#FFB23E" stroke-width="1.5" opacity="0.45"/>
+</g>
+</svg>`;

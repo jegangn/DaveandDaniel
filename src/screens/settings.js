@@ -1,6 +1,10 @@
 import { isEnabled, setEnabled } from "../audio.js";
+import { resetProfile, unlockKey } from "../progress.js";
+import { PROFILES } from "../profiles.js";
 
 export function mount(stage, state, router) {
+  const prof = PROFILES[state.profile];
+
   const sec = document.createElement("section");
   sec.className = "screen active";
   sec.id = "screen-settings";
@@ -59,7 +63,7 @@ export function mount(stage, state, router) {
     c2.className = "settings-card";
     const h = document.createElement("h2");
     h.className = "display";
-    h.textContent = "SETTINGS";
+    h.textContent = `SETTINGS · ${prof.label}`;
 
     const soundBtn = document.createElement("button");
     soundBtn.className = "btn";
@@ -71,24 +75,22 @@ export function mount(stage, state, router) {
 
     const unlockBtn = document.createElement("button");
     unlockBtn.className = "btn";
-    const unlocked = localStorage.getItem("bm.unlockAll") === "1";
+    const uKey = unlockKey(prof.prefix);
+    const unlocked = localStorage.getItem(uKey) === "1";
     unlockBtn.textContent = unlocked ? "LOCK BACK" : "UNLOCK ALL LEVELS";
     unlockBtn.addEventListener("pointerup", () => {
-      const nowOn = localStorage.getItem("bm.unlockAll") !== "1";
-      if (nowOn) localStorage.setItem("bm.unlockAll", "1");
-      else localStorage.removeItem("bm.unlockAll");
+      const nowOn = localStorage.getItem(uKey) !== "1";
+      if (nowOn) localStorage.setItem(uKey, "1");
+      else localStorage.removeItem(uKey);
       unlockBtn.textContent = nowOn ? "LOCK BACK" : "UNLOCK ALL LEVELS";
     });
 
     const resetBtn = document.createElement("button");
     resetBtn.className = "btn ghost";
-    resetBtn.textContent = "RESET PROGRESS";
+    resetBtn.textContent = `RESET ${prof.label}'S PROGRESS`;
     resetBtn.addEventListener("pointerup", () => {
-      if (confirm("Reset all progress? This cannot be undone.")) {
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const k = localStorage.key(i);
-          if (k && (k.startsWith("bm.stars.") || k === "bm.unlockAll")) localStorage.removeItem(k);
-        }
+      if (confirm(`Reset ${prof.label}'s progress? This cannot be undone.`)) {
+        resetProfile(localStorage, prof.prefix);
         router.go("splash");
       }
     });

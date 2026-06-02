@@ -41,25 +41,30 @@ export function digitsOf(n) {
   return n < 10 ? [n] : [Math.floor(n / 10), n % 10];
 }
 
-/** Unlock all 18 levels by writing 3 stars per level into localStorage. */
-export async function unlockAll(page) {
-  await page.evaluate(() => {
-    for (const w of ["add", "sub", "mult"]) {
-      for (let l = 1; l <= 6; l++) {
-        localStorage.setItem(`bm.stars.${w}.${l}`, "3");
+/** Unlock all of a profile's levels by writing 3 stars per level into
+ *  localStorage (profile-namespaced) and setting that profile active. */
+export async function unlockAll(page, profile = "dave") {
+  await page.evaluate((prof) => {
+    if (window.__setProfile) window.__setProfile(prof);
+    const worlds = prof === "dave" ? ["add", "sub", "mult"] : ["nadd", "nsub", "nmul", "ndiv"];
+    const L = prof === "dave" ? 6 : 5;
+    for (const w of worlds) {
+      for (let l = 1; l <= L; l++) {
+        localStorage.setItem(`${prof}.stars.${w}.${l}`, "3");
       }
     }
-  });
+  }, profile);
 }
 
 /**
- * Navigate directly to a level by calling the router.
+ * Navigate directly to a level by calling the router (profile-aware).
  * Requires the page to already be loaded (after page.goto('/') + unlockAll).
  */
-export async function goToLevel(page, world, level) {
-  await page.evaluate(({ w, l }) => {
+export async function goToLevel(page, world, level, profile = "dave") {
+  await page.evaluate(({ w, l, p }) => {
+    if (window.__setProfile) window.__setProfile(p);
     window.__router.go("level", { world: w, level: l });
-  }, { w: world, l: level });
+  }, { w: world, l: level, p: profile });
   await page.waitForTimeout(300);
 }
 

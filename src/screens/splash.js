@@ -1,10 +1,19 @@
-import { banji, cog } from "../svg.js";
+import { cog } from "../svg.js";
+import { PROFILES } from "../profiles.js";
 import { unlockAudio, sfx } from "../audio.js";
 
 export function mount(stage, state, router) {
+  const prof = PROFILES[state.profile];
+
   const sec = document.createElement("section");
   sec.className = "screen active";
   sec.id = "screen-splash";
+
+  // Switch-player button (top-left) → back to the Who's-playing picker.
+  const playersBtn = document.createElement("button");
+  playersBtn.className = "players-btn display";
+  playersBtn.textContent = "⇄ PLAYERS";
+  sec.appendChild(playersBtn);
 
   const cogWrap = document.createElement("div");
   cogWrap.className = "cog-corner";
@@ -17,12 +26,12 @@ export function mount(stage, state, router) {
 
   const title = document.createElement("h1");
   title.className = "splash-title display";
-  title.textContent = "JHANAV'S MATH";
+  title.textContent = prof.title;
   sec.appendChild(title);
 
   const mascot = document.createElement("div");
   mascot.className = "splash-mascot";
-  mascot.insertAdjacentHTML("beforeend", banji("idle"));
+  mascot.insertAdjacentHTML("beforeend", prof.splashMascot("idle"));
   sec.appendChild(mascot);
 
   const btn = document.createElement("button");
@@ -30,9 +39,9 @@ export function mount(stage, state, router) {
   btn.textContent = "TAP TO PLAY ▶";
   sec.appendChild(btn);
 
-  // Parent-gate lock-out: if a previous gate attempt failed twice, the
-  // splash is locked for 5 seconds — block all interaction and show a
-  // countdown message so the parent (and not the kid) knows to wait.
+  // Parent-gate lock-out: if a previous gate attempt failed twice, the splash
+  // is locked for 5 seconds — block all interaction and show a countdown so the
+  // parent (not the kid) knows to wait. (Device-level lock, shared by profiles.)
   const lockUntil = parseInt(localStorage.getItem("bm.parentLockUntil") || "0", 10);
   const lockRemaining = Math.max(0, lockUntil - Date.now());
   let lockBanner = null;
@@ -40,8 +49,6 @@ export function mount(stage, state, router) {
   if (lockRemaining > 0) {
     lockBanner = document.createElement("div");
     lockBanner.className = "parent-lock-banner display";
-    // Block any pointer/click reaching the underlying splash so the parent
-    // can't accidentally start the game or re-open the gate while locked.
     const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
     lockBanner.addEventListener("pointerdown", swallow);
     lockBanner.addEventListener("pointerup", swallow);
@@ -73,7 +80,14 @@ export function mount(stage, state, router) {
   btn.addEventListener("pointerup", go);
   sec.addEventListener("pointerup", (e) => {
     if (e.target.closest(".cog-corner")) return;
+    if (e.target.closest(".players-btn")) return;
     if (!e.target.closest("button")) go();
+  });
+
+  playersBtn.addEventListener("pointerup", () => {
+    if (isLocked()) return;
+    sfx.transition();
+    router.go("picker");
   });
 
   cogWrap.addEventListener("pointerup", () => {
