@@ -64,4 +64,9 @@ test(`capture profile screens @ ${TABLET.width}x${TABLET.height}`, async ({ page
   await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nmul', level: 4 }); });
   await page.waitForTimeout(500);
   await shot(page, '07-long-mult', TABLET);
+
+  // short (bus-stop) division — initial layout (divisor, bracket, dividend, quotient slots)
+  await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'ndiv', level: 4 }); });
+  await page.waitForTimeout(500);
+  await shot(page, '08-short-div', TABLET);
 });

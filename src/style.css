@@ -1416,3 +1416,27 @@ button {
 #stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
 #stage[data-orient="portrait"] .lm-ws .cell,
 #stage[data-orient="portrait"] .lm-ws .slot { height: 70px; font-size: 50px; line-height: 70px; }
+
+/* ----- Short (bus-stop) division ------------------------------------- */
+.div-ws { --col-w: 88px; top: 150px; gap: 6px 4px; }
+.div-ws .cell,
+.div-ws .slot { height: 100px; font-size: 72px; line-height: 100px; }
+/* The bus-stop bracket: a line over the dividend + a vertical bar at its left. */
+.div-ws .div-dividend { border-top: 5px solid var(--ink); position: relative; }
+.div-ws .div-dividend.first { border-left: 5px solid var(--ink); }
+.div-ws .div-divisor { display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+.div-carry {
+  position: absolute; top: 2px; left: 6px; font-size: 30px; line-height: 1;
+  color: var(--world-accent); font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+  opacity: 0; pointer-events: none;
+}
+.div-carry.show { opacity: 1; }
+.div-rem {
+  display: flex; align-items: center; justify-content: flex-start; padding-left: 8px;
+  font-size: 52px; color: var(--ink-soft); opacity: 0; white-space: nowrap;
+  transition: opacity .3s var(--ease-pop);
+}
+.div-rem.show { opacity: 1; }
+#stage[data-orient="portrait"] .div-ws { --col-w: 74px; top: 50%; }
+#stage[data-orient="portrait"] .div-ws .cell,
+#stage[data-orient="portrait"] .div-ws .slot { height: 84px; font-size: 60px; line-height: 84px; }

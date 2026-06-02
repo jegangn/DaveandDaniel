@@ -12,7 +12,7 @@ import * as settings from "./screens/settings.js";
 import * as colAdd from "./screens/col-add.js";
 import * as colSub from "./screens/col-sub.js";
 import * as longMult from "./screens/long-mult.js";
-// Daniel's short-div screen is added below when it lands.
+import * as shortDiv from "./screens/short-div.js";
 
 const stage = document.getElementById("stage");
 const viewport = document.getElementById("viewport");
@@ -65,7 +65,10 @@ function fitStage() {
 
 // Screen modules dispatched by the router. Daniel's four screens
 // (col-add / col-sub / long-mult / short-div) are registered in Phase 4.
-const SCREENS = { add, sub, "mult-tap": multTap, "mult-drag": multDrag, "col-add": colAdd, "col-sub": colSub, "long-mult": longMult };
+const SCREENS = {
+  add, sub, "mult-tap": multTap, "mult-drag": multDrag,
+  "col-add": colAdd, "col-sub": colSub, "long-mult": longMult, "short-div": shortDiv,
+};
 
 const state = { profile: "dave", progress: {} };
 function activeProfile() { return PROFILES[state.profile]; }
