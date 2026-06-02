@@ -199,3 +199,23 @@ export function layoutMultDrag(stage, sec) {
   const bandTop = headerBottom(stage, sec) + BAND_PAD;
   centerPlay(stage, playCol, bandTop, boxTop - BAND_PAD, true);
 }
+
+// Daniel's column worksheet (col-add / col-sub). Landscape is pure CSS; portrait
+// fits the tray then centres + scales the worksheet in the leftover band. The
+// worksheet uses a CSS grid and flyCarry reads live rects, so scaling is safe.
+export function layoutColMath(stage, sec) {
+  if (!sec || !sec.isConnected) return;
+  const tray = sec.querySelector(".digit-tray");
+  const ws = sec.querySelector(".col-ws");
+  if (!isPortrait(stage)) {
+    if (tray) { clearTileSizes(tray.querySelectorAll(".tile")); tray.style.height = ""; }
+    clearInline(ws, ["position", "left", "top", "transform"]);
+    return;
+  }
+  const H = stage.offsetHeight;
+  if (H < 400 || !tray || !ws) return;
+  const trayH = fitTray(stage, tray, maxTrayHeight(H));
+  const bandTop = logicalRect(stage, sec.querySelector(".topbar")).bottom + BAND_PAD;
+  const bandBottom = H - TRAY_BOTTOM - trayH - BAND_PAD;
+  centerPlay(stage, ws, bandTop, bandBottom, true);
+}

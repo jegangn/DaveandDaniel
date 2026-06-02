@@ -1345,3 +1345,55 @@ button {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(2, 1fr);
 }
+
+/* ----- Daniel column worksheet (col-add / col-sub) ------------------- */
+/* A CSS grid: leftmost operator column + N digit columns. Rows: carry marks,
+   top operand, bottom operand (+/−), the rule line, then the answer slots.
+   Grid auto-alignment keeps every column lined up; carry "1"s fly into the
+   carry row. Tabular figures keep the columns mathematically aligned. */
+#screen-col-add, #screen-col-sub {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 70%, #000) 0%, var(--world-sky) 60%, #0A1320 100%);
+  padding: 0;
+}
+.col-ws {
+  position: absolute; left: 50%; top: 84px; transform: translateX(-50%);
+  --col-w: 86px;
+  display: grid; gap: 6px 10px;
+  align-items: stretch; justify-items: stretch;
+  /* Manila-dossier card so the dark-ink digits read on the spy backdrop. */
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  padding: 18px 28px 24px;
+}
+.col-ws .ws-op,
+.col-ws .cell,
+.col-ws .carry-cell,
+.col-ws .slot { width: 100%; }
+.col-ws .cell {
+  height: 104px; font-size: 76px; line-height: 104px; text-align: center;
+  color: var(--ink); font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+}
+.col-ws .ws-op { display: flex; align-items: center; justify-content: center; min-width: 52px; }
+.col-ws .ws-op.op {
+  font-size: 72px; color: var(--ink);
+  font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+}
+.col-ws .carry-cell {
+  height: 46px; line-height: 46px; text-align: center; font-size: 34px;
+  color: var(--world-accent); font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+  opacity: 0; transition: opacity .25s var(--ease-pop);
+}
+.col-ws .carry-cell.filled { opacity: 1; }
+.col-ws .ws-line {
+  grid-column: 1 / -1; height: 6px; background: var(--ink);
+  border-radius: 3px; margin: 4px 0;
+}
+.col-ws .slot { height: 104px; font-size: 76px; border-radius: var(--r-md); }
+
+/* Column worksheet — portrait sizing (layout.js centres it in the play band) */
+#stage[data-orient="portrait"] .col-ws { --col-w: 72px; left: 50%; top: 50%; }
+#stage[data-orient="portrait"] .col-ws .cell,
+#stage[data-orient="portrait"] .col-ws .slot { height: 92px; font-size: 64px; line-height: 92px; }
+#stage[data-orient="portrait"] .col-ws .ws-op.op { font-size: 60px; }

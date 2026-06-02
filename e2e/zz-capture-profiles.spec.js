@@ -48,4 +48,10 @@ test(`capture profile screens @ ${TABLET.width}x${TABLET.height}`, async ({ page
   await page.locator('.splash-play').click();
   await page.waitForTimeout(350);
   await shot(page, '04-daniel-board', TABLET);
+
+  // Daniel screens (initial problem state) — eyeball alignment + spy theme.
+  await unlockAll(page, 'daniel');
+  await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nadd', level: 5 }); });
+  await page.waitForTimeout(400);
+  await shot(page, '05-col-add', TABLET);
 });
