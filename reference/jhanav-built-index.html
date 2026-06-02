@@ -1,0 +1,4288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#FFF3DC" />
+  <title>Jhanav's Math Adventure</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+:root {
+  --bg-paper: #EFDDB4;
+  --bg-card: #FFF7E2;
+  --ink: #2B1A0B;
+  --ink-soft: #7A5622;
+  --success: #41C167;
+  --success-deep: #1B7E36;
+  --gentle-no: #FF7A40;
+  --star: #FFC230;
+  --star-glow: #FFF0A0;
+  --lock: #9C8C6E;
+
+  --world-primary: #FFB42E;
+  --world-accent: #FF7A40;
+  --world-sky: #79CFE0;
+  --world-ground: #3E9E3A;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --s-9: 96px; --s-10: 128px; --s-11: 160px;
+
+  --r-sm: 14px; --r-md: 24px; --r-lg: 36px; --r-xl: 52px; --r-pill: 9999px;
+
+  --sh-1: 0 3px 0 #C79152, 0 5px 12px rgba(58,34,8,.22);
+  --sh-2: 0 6px 0 #A86A2C, 0 10px 20px rgba(58,34,8,.26);
+  --sh-3: 0 9px 0 #A86A2C, 0 16px 30px rgba(58,34,8,.30);
+  --sh-pressed: 0 2px 0 #A86A2C, 0 3px 7px rgba(58,34,8,.22);
+
+  --ease-pop: cubic-bezier(0.34, 1.6, 0.5, 1);
+  --ease-soft: cubic-bezier(0.45, 0.05, 0.25, 1);
+  --ease-snap: cubic-bezier(0.25, 0.9, 0.3, 1.4);
+  --ease-elastic: cubic-bezier(0.7, -0.5, 0.3, 1.5);
+  --ease-arc: cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+#stage[data-world="add"]  { --world-primary:#FFB42E; --world-accent:#FF7A40; --world-sky:#79CFE0; --world-ground:#3E9E3A; }
+#stage[data-world="sub"]  { --world-primary:#2FBEBE; --world-accent:#4A9EFF; --world-sky:#9FE2DF; --world-ground:#4FA88F; }
+#stage[data-world="mult"] { --world-primary:#E0921F; --world-accent:#79AE3C; --world-sky:#F6CE74; --world-ground:#7A5A24; }
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: var(--bg-paper); color: var(--ink);
+  font-family: 'Nunito', 'Avenir Next', system-ui, sans-serif;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#viewport {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+#stage {
+  position: relative;
+  width: 1280px; height: 800px;
+  /* Prevent the flex parent from shrinking the stage below its declared
+     logical size — the transform-scale handles fit, not flex layout. */
+  flex-shrink: 0;
+  transform-origin: center center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--world-sky) 55%, #fff) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 88%, #fff) 0%, var(--world-sky) 100%);
+  overflow: hidden;
+  touch-action: none;
+}
+
+#stage[data-orient="portrait"] {
+  width: 720px;
+  height: 1280px;
+}
+
+.screen { position: absolute; inset: 0; display: none; }
+.screen.active { display: block; }
+.display { font-family: 'Lilita One', 'Bungee', system-ui; font-weight: 400; }
+
+.tile {
+  width: 96px; height: 96px;
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, #FFFDF4 0%, var(--bg-card) 60%, color-mix(in srgb, var(--bg-card) 88%, var(--ink) 12%) 100%);
+  border: 4px solid var(--ink);
+  box-shadow: var(--sh-2), inset 0 4px 0 rgba(255,255,255,.7), inset 0 -5px 0 rgba(120,70,20,.10);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 64px; color: var(--ink);
+  cursor: grab; user-select: none;
+  transition: transform .12s var(--ease-pop), box-shadow .12s var(--ease-pop);
+  position: relative;
+  touch-action: none;
+}
+.tile.dragging {
+  transform: scale(1.15) translateY(-8px);
+  box-shadow: var(--sh-3);
+  z-index: 200; cursor: grabbing;
+  transition: none;
+}
+.tile.dim     { opacity: .3; transform: scale(.94); pointer-events: auto; }
+.tile.hint-dim{ opacity: .18; transform: scale(.92); }
+.tile.hint-target { animation: hintPulse 2s var(--ease-soft) infinite; }
+@keyframes hintPulse {
+  0%,100% { transform: scale(1); box-shadow: 0 0 0 0 var(--star-glow); }
+  50%     { transform: scale(1.05); box-shadow: 0 0 24px 8px var(--star-glow); }
+}
+
+.slot {
+  width: 100px; height: 120px;
+  border-radius: var(--r-md);
+  border: 4px dashed var(--ink-soft);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 96px; color: var(--ink);
+  position: relative;
+}
+.slot.inactive  { opacity: .5; }
+.slot.active    { border-style: solid; border-color: var(--world-primary); animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.slot.filled    { border-style: solid; border-color: var(--ink); animation: none; }
+.slot.flash-no  { border-color: var(--gentle-no); animation: slotShake .3s var(--ease-elastic); }
+@keyframes slotPulse {
+  0%   { box-shadow: 0 0 0 0 var(--world-primary); }
+  60%  { box-shadow: 0 0 0 16px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes slotShake {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(5deg); }
+  50% { transform: rotate(-5deg); }
+  75% { transform: rotate(3deg); }
+}
+@keyframes slotCorrectFlash {
+  0%   { box-shadow: 0 0 0 0 var(--success), 0 0 0 0 var(--star-glow);
+         border-color: var(--success-deep); }
+  40%  { box-shadow: 0 0 0 18px rgba(74, 214, 109, 0.55), 0 0 28px 12px rgba(255, 241, 168, 0.8);
+         border-color: var(--success-deep); }
+  100% { box-shadow: 0 0 0 32px rgba(74, 214, 109, 0), 0 0 36px 18px rgba(255, 241, 168, 0);
+         border-color: var(--ink); }
+}
+@keyframes slotDigitPunch {
+  0%   { transform: scale(0.6); }
+  55%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.slot.filled.just-filled {
+  animation: slotCorrectFlash 0.7s var(--ease-pop);
+}
+.slot.filled.just-filled {
+  /* Punch-in the digit text */
+  display: inline-flex;
+}
+.slot.filled.just-filled::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.slot.just-filled {
+  animation: slotCorrectFlash 0.7s var(--ease-pop), slotDigitPunch 0.4s var(--ease-pop);
+}
+
+/* Sparkle particles spawned by correctBurst() */
+.spark-particle {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 400;
+  box-shadow: 0 0 8px currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.mascot-sparkle {
+  position: absolute;
+  width: 28px; height: 28px;
+  pointer-events: none;
+  z-index: 350;
+  background: var(--star);
+  /* CSS-only 4-point star using clip-path */
+  clip-path: polygon(50% 0%, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0% 50%, 40% 38%);
+  filter: drop-shadow(0 0 8px var(--star-glow));
+}
+.mascot-sparkle:nth-child(3n) { background: var(--world-primary); }
+.mascot-sparkle:nth-child(3n+1) { background: var(--success); }
+
+.block-host {
+  width: 96px; height: 96px;
+  display: inline-block;
+  cursor: grab;
+  transition: transform .2s var(--ease-pop);
+  filter: drop-shadow(0 4px 0 rgba(120,70,20,0.25));
+  touch-action: none;
+}
+.block-host.idle-wobble { animation: blockWobble 2s ease-in-out infinite; }
+@keyframes blockWobble { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.block-host.untapped { opacity: .55; filter: none; }
+.block-host.tapped   { opacity: 1; animation: blockPop .35s var(--ease-pop); }
+.block-host.dragging { transform: scale(1.15); animation: none; z-index: 200; cursor: grabbing; }
+.block-host.in-group { transform: scale(1); animation: none; }
+@keyframes blockPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); }
+  100% { transform: scale(1.05); }
+}
+
+.block-host .glow circle { transition: opacity .35s var(--ease-pop); }
+.block-host.tapped .glow circle { opacity: .7; }
+
+/* Task 16 count-badge first pass — superseded by Task 19 definition below */
+
+/* Task 16 group-tray styles superseded by Task 29 — removed to avoid cascade conflicts */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 12px;
+  min-width: 280px; height: 110px;
+  border-radius: var(--r-pill);
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--ink) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-primary) 72%, #fff) 0%, var(--world-primary) 52%, color-mix(in srgb, var(--world-primary) 82%, var(--ink) 18%) 100%); color: var(--ink);
+  font-family: 'Lilita One', system-ui; font-size: 36px;
+  cursor: pointer; user-select: none;
+  box-shadow: var(--sh-3), inset 0 5px 0 rgba(255,255,255,.45), inset 0 -7px 0 rgba(120,60,10,.14);
+  transition: transform .08s var(--ease-pop), box-shadow .08s var(--ease-pop);
+  padding: 0 32px;
+  /* Always crisp — no browser focus ring, tap highlight, hover fade, or
+     UA-default border style can mute these. */
+  outline: 0 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.btn:active { transform: translateY(6px); box-shadow: var(--sh-pressed); }
+.btn:focus, .btn:focus-visible, .btn:hover {
+  outline: 0 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  border-style: solid !important;
+  border-color: var(--ink) !important;
+}
+button {
+  outline: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:disabled, .btn.disabled {
+  /* Restore opacity here since the global .btn rule pins it to 1 with
+     !important; the explicit disabled state still needs to mute. */
+  opacity: .55 !important;
+}
+.btn.pill   { min-width: 480px; height: 120px; font-size: 56px; }
+.btn.ghost  { background: linear-gradient(180deg, #FFFDF4, var(--bg-card)); }
+.btn.success{ background: linear-gradient(180deg, color-mix(in srgb, var(--success) 75%, #fff), var(--success) 55%, var(--success-deep)); color: #fff; }
+.btn:disabled, .btn.disabled {
+  opacity: .55; cursor: not-allowed; box-shadow: none;
+  background: var(--ink-soft);
+}
+
+.star-meter { display: inline-flex; gap: 8px; align-items: center; }
+.star-meter .star { width: 32px; height: 32px; }
+.star-meter.big .star { width: 110px; height: 110px; }
+.star-meter .star.empty path { opacity: .25; }
+.star-meter .star.earned {
+  filter: drop-shadow(0 0 12px var(--star-glow));
+  animation: starReveal .5s var(--ease-pop);
+}
+.star-meter .star.earned path { fill: var(--star); opacity: 1; }
+@keyframes starReveal {
+  0%   { transform: translateY(-80px) scale(0); opacity: 0; }
+  60%  { transform: translateY(0) scale(1.3); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ===== TASK 17: Carry & Borrow Chip Styles ===== */
+.carry-chip, .borrow-chip {
+  position: fixed;
+  width: 60px; height: 60px;
+  border-radius: var(--r-md);
+  background: var(--world-primary);
+  border: 3px solid var(--ink);
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif; font-weight: 700; font-size: 40px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 500;
+}
+.borrow-chip { background: var(--world-accent); }
+.carry-slot {
+  position: absolute; width: 60px; height: 60px;
+  border-radius: var(--r-md);
+  border: 3px dashed var(--ink-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif; font-weight: 700; font-size: 40px;
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity .3s var(--ease-pop);
+  /* left/top set inline by JS per problem — no hardcoded position here */
+}
+.carry-slot.filled { opacity: 1; border-style: solid; }
+
+/* ===== TASK 18: Borrow Animation Styles ===== */
+.strike {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.strike svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.strike line {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: strikeDraw 1.3s cubic-bezier(0.45, 0.05, 0.25, 1) forwards;
+}
+@keyframes strikeDraw { to { stroke-dashoffset: 0; } }
+
+.borrow-plus {
+  position: fixed;
+  width: 36px; height: 36px;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 500;
+}
+.borrow-replacement {
+  position: absolute;
+  width: 60px; height: 60px;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 56px; color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+/* Pencil-style "1" carry mark above-LEFT of the unchanged ones digit.
+   Same size as the new-tens digit above the struck "3" so they read as
+   a matched pair; tinted with the borrow accent so the kid sees it as
+   a teacher annotation. */
+.borrow-replacement.borrow-carry {
+  color: #FF7A40;
+}
+
+/* ===== TASK 19: Block Styles ===== */
+.count-badge {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--gentle-no);
+  color: white;
+  font-family: 'Lilita One', system-ui;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: all .2s var(--ease-pop);
+}
+.count-badge.show { opacity: 1; transform: scale(1); }
+
+.block.idle-wobble {
+  animation: blockWobble 1.5s ease-in-out infinite;
+}
+@keyframes blockWobble {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* ===== TASK 21: Mascot Animations ===== */
+.mascot { display: block; }
+.mascot.idle { animation: mascotBreath 4s var(--ease-soft) infinite; }
+.mascot.idle .eye-l circle:first-child,
+.mascot.idle .eye-r circle:first-child { animation: mascotBlink 4s steps(1) infinite; }
+.mascot.celebrate { animation: mascotCelebrate .8s var(--ease-pop) 3; }
+.mascot.celebrate .wing-l, .mascot.celebrate .wing-r { animation: wingFlap .8s ease-in-out 3; }
+
+@keyframes mascotBreath { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
+@keyframes mascotBlink  { 0%,53%,57%,100% { opacity: 1; } 54%,56% { opacity: .1; } }
+@keyframes mascotCelebrate {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-12px) rotate(-3deg); }
+  50%  { transform: translateY(0); }
+  75%  { transform: translateY(-8px) rotate(3deg); }
+  100% { transform: translateY(0); }
+}
+@keyframes wingFlap {
+  0%,100% { transform: rotate(0); }
+  50% { transform: rotate(-20deg); }
+}
+
+/* ===== Expression presets (CSS-only, all mascots) ===== */
+.mascot .eye-state,
+.mascot .mouth-state,
+.mascot .brow-state { display: none; }
+
+.mascot.idle .eye-state.idle,
+.mascot.idle .mouth-state.idle,
+.mascot.idle .brow-state.idle { display: inline; }
+
+.mascot.happy .eye-state.idle,
+.mascot.happy .brow-state.idle { display: inline; }
+.mascot.happy .mouth-state.happy { display: inline; }
+
+.mascot.super-happy .eye-state.super-happy,
+.mascot.super-happy .brow-state.up,
+.mascot.super-happy .mouth-state.super-happy { display: inline; }
+
+.mascot.dizzy .eye-state.dizzy,
+.mascot.dizzy .brow-state.idle,
+.mascot.dizzy .mouth-state.dizzy { display: inline; }
+
+.mascot.surprised .eye-state.surprised,
+.mascot.surprised .brow-state.up,
+.mascot.surprised .mouth-state.surprised { display: inline; }
+
+/* ===== Transform-origins (new 200×200 viewBox geometry) ===== */
+.mascot .head    { transform-origin: 100px 100px; }
+.mascot .tail    { transform-origin: 100px 150px; }
+.mascot .wing-l  { transform-origin:  65px 110px; }
+.mascot .wing-r  { transform-origin: 135px 110px; }
+.mascot .arm-l   { transform-origin:  62px 122px; }
+.mascot .arm-r   { transform-origin: 138px 122px; }
+.mascot .ear-l   { transform-origin:  80px  84px; }
+.mascot .ear-r   { transform-origin: 120px  84px; }
+
+/* ===== TASK 22: Confetti Styles ===== */
+.confetti-particle { position: absolute; pointer-events: none; }
+.confetti-particle svg { width: 20px; height: 20px; }
+
+/* ===== TASK 23: Node Unlock Styles ===== */
+.level-node.unlocking { animation: nodeShake .4s var(--ease-elastic); }
+@keyframes nodeShake { 0%,100% { transform: scale(1); } 25% { transform: scale(1.06) rotate(6deg); } 75% { transform: scale(1.06) rotate(-6deg); } }
+
+/* ===== TASK 24: Splash Screen ===== */
+#screen-splash {
+  background:
+    radial-gradient(80% 50% at 50% 12%, rgba(255,255,255,.5), transparent 60%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--world-sky) 80%, #fff) 0%, var(--world-sky) 52%, var(--world-ground) 60%, color-mix(in srgb, var(--world-ground) 85%, var(--ink) 15%) 100%);
+}
+.splash-title {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  font-size: 88px; line-height: 1; margin: 0;
+  color: var(--ink);
+  text-shadow: 0 4px 0 var(--star);
+  letter-spacing: 2px;
+  text-align: center;
+}
+.splash-mascot {
+  position: absolute; top: 220px; left: 50%; transform: translateX(-50%);
+  width: 340px; height: 340px;
+}
+.splash-mascot svg { width: 100%; height: 100%; }
+.splash-play {
+  position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+  animation: playPulse 2s var(--ease-soft) infinite;
+}
+@keyframes playPulse {
+  0%,100% { box-shadow: var(--sh-3), 0 0 0 0 var(--world-primary); }
+  50%     { box-shadow: var(--sh-3), 0 0 0 18px transparent; }
+}
+.cog-corner {
+  position: absolute; top: 32px; right: 32px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-pill);
+  box-shadow: var(--sh-1);
+}
+.cog-corner svg { width: 56px; height: 56px; }
+.cog-label { font-size: 28px; color: var(--ink); letter-spacing: 0.04em; }
+.parent-lock-banner {
+  position: absolute; top: 250px; left: 50%; transform: translateX(-50%);
+  background: var(--gentle-no); color: #FFF; border: 4px solid var(--ink);
+  border-radius: var(--r-pill);
+  padding: 18px 40px; font-size: 32px; box-shadow: var(--sh-2);
+  letter-spacing: 0.04em;
+  z-index: 50;
+}
+
+/* ===== TASK 25: World Map Screen ===== */
+#screen-map {
+  background: linear-gradient(to bottom, #FBEFCD 0%, #ECD7A4 100%);
+  padding: 80px 24px 24px;
+}
+.home-btn {
+  position: absolute; top: 32px; left: 32px;
+  width: 80px; height: 80px;
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  box-shadow: var(--sh-1);
+  cursor: pointer;
+}
+.home-btn svg { width: 100%; height: 100%; padding: 12px; }
+
+.star-meter.total {
+  position: absolute; top: 40px; right: 32px;
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+  display: flex; align-items: center; gap: 8px;
+}
+.star-meter.total svg.star { width: 32px; height: 32px; vertical-align: middle; }
+
+.world-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px; height: 100%; padding: 120px 24px 24px;
+}
+.world-panel {
+  background: linear-gradient(180deg, #FFFBEE 0%, var(--bg-card) 100%);
+  border: 5px solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1), inset 0 0 0 3px rgba(255,255,255,.5);
+  padding: 16px; position: relative; overflow: hidden;
+}
+.world-title { text-align: center; font-size: 28px; margin: 0 0 12px; }
+.world-add  .world-title { color: #B07020; }
+.world-sub  .world-title { color: #2C8585; }
+.world-mult .world-title { color: #B26818; }
+
+.level-path {
+  display: grid; grid-template-columns: repeat(2, 100px);
+  justify-content: center; align-content: space-around;
+  gap: 24px 32px; height: calc(100% - 40px);
+}
+.level-node {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 5px solid var(--ink);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--world-primary) 60%, #fff), var(--world-primary) 72%);
+  color: #fff;
+  font-family: 'Lilita One', system-ui; font-size: 48px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  box-shadow: var(--sh-1), inset 0 4px 0 rgba(255,255,255,.4), inset 0 -6px 0 rgba(120,60,10,.15);
+}
+.level-node.locked { background: var(--lock); cursor: default; }
+.level-node.locked svg { width: 56px; height: 56px; }
+.level-node.unlocked { animation: nodePulse 1.8s var(--ease-soft) infinite; }
+.level-node.stars-1, .level-node.stars-2, .level-node.stars-3 { animation: none; }
+@keyframes nodePulse {
+  0%,100% { box-shadow: var(--sh-1), 0 0 0 0 var(--world-primary); }
+  50%     { box-shadow: var(--sh-1), 0 0 0 16px transparent; }
+}
+.node-ribbon {
+  position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px;
+  background: var(--ink); padding: 2px 6px; border-radius: var(--r-pill);
+}
+.node-ribbon svg { width: 18px; height: 18px; }
+
+/* ===== TASK 26: Addition Level Screen ===== */
+#screen-add, #screen-sub {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 82%, #fff) 0%, var(--world-sky) 68%, color-mix(in srgb, var(--world-ground) 55%, var(--world-sky) 45%) 100%);
+  padding: 0;
+}
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 72px;
+  display: flex; align-items: center; gap: 24px;
+  padding: 16px 32px;
+}
+.topbar .star-meter.run { margin-left: auto; }
+.home-btn.small {
+  position: static;   /* opt out of absolute positioning from base .home-btn */
+  top: auto;
+  left: auto;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+}
+.home-btn.small svg { width: 100%; height: 100%; }
+.progress-dots { display: flex; gap: 8px; }
+.dot { width: 16px; height: 16px; border-radius: 50%; background: var(--bg-card); border: 3px solid var(--ink); }
+.dot.current { background: var(--world-primary); }
+.dot.filled  { background: var(--success); }
+.star-meter.run { font-size: 24px; font-family: 'Nunito', sans-serif; font-weight: 900; }
+
+.worksheet {
+  position: absolute; left: 380px; top: 100px; width: 520px; height: 540px;
+  display: grid; grid-template-rows: auto auto auto 6px auto;
+  gap: 16px;
+  justify-content: center; align-content: start;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+}
+.worksheet .row { display: flex; gap: 16px; justify-content: flex-end; }
+.worksheet .row.top { position: relative; }
+.worksheet .row.bot .op { font-size: 96px; line-height: 120px; width: 60px; text-align: center; }
+.worksheet .cell { width: 100px; height: 120px; font-size: 96px; line-height: 120px; text-align: center; position: relative; }
+.worksheet .cell.empty { opacity: 0; }
+.worksheet .line { background: var(--ink); height: 6px; border-radius: 3px; margin: 0 0 0 76px; max-width: 232px; }
+.worksheet .row.ans { gap: 16px; justify-content: flex-end; }
+.carry-slot.hidden { display: none; }
+
+/* Compound tiles (10-18): same box as single digits, smaller font to fit 2 chars */
+.tile.compound {
+  width: 96px;
+  height: 96px;
+  font-size: 56px;
+}
+/* Smaller compound variant used by multiplication answer options — many
+   more tiles need to fit in the tray (11–16 in a row vs. 5 for addition). */
+.tile.compound.mult-option {
+  width: 76px;
+  height: 76px;
+  font-size: 44px;
+}
+
+/* Two-row tray when compound tiles are present */
+.digit-tray.two-row {
+  height: 232px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  align-items: center;
+  justify-content: center;
+}
+.digit-tray .tile-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Raise corner mascot when tray has two rows */
+#screen-add.two-row-active .corner-mascot {
+  bottom: 280px;
+}
+
+.digit-tray {
+  position: absolute; bottom: 20px; left: 80px; width: 1120px; height: 120px;
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+}
+
+.corner-mascot {
+  position: absolute; bottom: 160px; right: 32px; width: 180px; height: 180px;
+  pointer-events: none;
+}
+.corner-mascot svg { width: 100%; height: 100%; }
+
+/* ===== TASK 28: Multiplication Tap-Count Level Screen ===== */
+#screen-mult-tap, #screen-mult-drag { background: linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 82%, #fff), var(--world-sky)); }
+.mult-problem {
+  position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 16px; align-items: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+}
+.op-chip {
+  width: 120px; height: 130px; background: var(--bg-card);
+  border: 4px solid var(--ink); border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 96px; box-shadow: var(--sh-2);
+}
+.op-chip.q { border-style: dashed; background: transparent; animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.op-sym { font-size: 80px; color: var(--ink); }
+.firefly-area {
+  position: absolute; top: 240px; left: 80px; width: 1120px; height: 260px;
+  display: flex; gap: 40px; justify-content: center; align-items: center;
+}
+/* Lily-pads must NOT shrink when there are 4 groups (L3 of mult-tap) — keep
+   them at a fixed 240×240 so the ellipse stays roughly circular and there
+   is room to arrange up to 5 fireflies inside. */
+.lily-group { position: relative; width: 240px; height: 240px; flex-shrink: 0; }
+.lily-group svg.lilypad { position: absolute; inset: 0; }
+/* Fireflies are arranged inside the lily-pad ellipse. With the lily-group
+   at 240×240, the ellipse is roughly 225 wide × 206 tall. We pick a
+   per-count layout that keeps every firefly visually inside the curve. */
+.block-grid {
+  position: absolute; inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center; align-items: center;
+  gap: 10px;
+}
+.block-grid .block-host { width: 72px; height: 72px; }
+
+.block-grid[data-count="1"] { grid-template-columns: 72px; }
+.block-grid[data-count="2"] { grid-template-columns: repeat(2, 72px); }
+
+/* 3 fireflies in a 1-top / 2-bottom triangle so they sit comfortably
+   inside the ellipse instead of poking out the sides of a 3-wide row. */
+.block-grid[data-count="3"] {
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+}
+.block-grid[data-count="3"] > :nth-child(1) { grid-column: 1 / span 2; grid-row: 1; }
+.block-grid[data-count="3"] > :nth-child(2) { grid-column: 1; grid-row: 2; }
+.block-grid[data-count="3"] > :nth-child(3) { grid-column: 2; grid-row: 2; }
+
+.block-grid[data-count="4"] {
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+}
+
+/* 5 fireflies in a 3-on-top / 2-on-bottom pyramid. The 3-wide top row
+   only fits inside the ellipse at a smaller firefly size. */
+.block-grid[data-count="5"] {
+  grid-template-columns: repeat(6, 28px);
+  grid-template-rows: repeat(2, 56px);
+  gap: 4px;
+}
+.block-grid[data-count="5"] .block-host { width: 56px; height: 56px; }
+.block-grid[data-count="5"] > :nth-child(1) { grid-column: 1 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(2) { grid-column: 3 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(3) { grid-column: 5 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(4) { grid-column: 2 / span 2; grid-row: 2; }
+.block-grid[data-count="5"] > :nth-child(5) { grid-column: 4 / span 2; grid-row: 2; }
+.total-reveal {
+  position: absolute; top: 520px; left: 50%; transform: translateX(-50%);
+  width: 380px; height: 120px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  box-shadow: var(--sh-2);
+  padding: 0 24px;
+}
+.total-reveal.hidden { display: none; }
+.total-reveal .display { font-size: 32px; }
+/* The single mult answer slot holds a 1- OR 2-digit answer (e.g. "20"), so size
+   it to fit two digits without overflow — roomy but not oversized. Shared by the
+   tap-count TOTAL box and the drag-groups answer box (the latter otherwise falls
+   through to the base .slot whose 110px font clips two-digit answers). */
+.total-reveal .slot,
+.ans-host .slot {
+  width: 104px; height: 104px;
+  font-size: 60px;
+  border-radius: var(--r-md);
+}
+/* "HOW MANY TOTAL?" was rendering at the default ~16px — bump it up to read clearly. */
+.ans-host .display { font-size: 30px; }
+.ans-slot-host { display: flex; gap: 8px; }
+
+/* ===== TASK 29: Multiplication Drag-Groups Level Screen ===== */
+/* Wrapper around the counting trays + mango pile. Landscape: transparent, so
+   the children keep their original absolute layout. Portrait: see the portrait
+   section, where it becomes a centred flex column the layout engine fits. */
+.play-col { display: contents; }
+.group-row {
+  position: absolute; top: 220px; left: 100px; width: 1080px;
+  display: flex; gap: 60px; justify-content: center;
+}
+.group-tray {
+  position: relative;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; justify-content: center;
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  min-width: 100px; min-height: 100px;
+  box-shadow: var(--sh-1);
+  transition: border-color 0.2s, background 0.2s;
+}
+.group-tray.full {
+  border-color: var(--success-deep);
+  background: var(--star-glow);
+}
+/* Scoped to mult-drag group trays so it doesn't accidentally match
+   `.btn.ghost` buttons elsewhere (settings RESET PROGRESS/CLOSE, complete
+   screen AGAIN/MAP). Those need the full .btn box, not a tiny dashed slot. */
+.group-tray .ghost {
+  width: 56px; height: 56px;
+  border-radius: var(--r-sm);
+  border: 3px dashed var(--ink-soft);
+  background: transparent;
+  opacity: 0.4;
+}
+.count-chip {
+  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg-paper);
+  font-family: 'Lilita One', system-ui; font-size: 18px;
+  padding: 2px 10px; border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+#screen-mult-drag .block-host {
+  width: 56px; height: 56px;
+  cursor: grab;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+#screen-mult-drag .block-host.dragging { cursor: grabbing; z-index: 200; }
+#screen-mult-drag .block-host svg { width: 100%; height: 100%; }
+.block-pile {
+  position: absolute; top: 540px; left: 100px; width: 1080px; height: 160px;
+  display: flex; flex-wrap: wrap; gap: 12px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  padding: 24px; align-items: center; justify-content: center;
+}
+.ans-host {
+  position: absolute; top: 390px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 16px; align-items: center;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  padding: 16px 24px; box-shadow: var(--sh-2);
+}
+.ans-host.hidden { display: none; }
+.digit-tray.hidden { display: none; }
+
+/* ===== TASK 30: Complete Screen ===== */
+#screen-complete { background: radial-gradient(100% 70% at 50% 0%, color-mix(in srgb, var(--world-sky) 55%, #fff), var(--world-sky)); }
+.complete-title {
+  position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+  font-size: 80px; text-shadow: 0 4px 0 var(--world-primary);
+  margin: 0;
+}
+#screen-complete .star-meter.big {
+  position: absolute; top: 170px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 32px;
+}
+.complete-mascot {
+  position: absolute; top: 310px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 220px;
+}
+.complete-mascot svg { width: 100%; height: 100%; }
+.complete-buttons {
+  position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 28px;
+}
+.confetti-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+/* ===== TASK 33: Settings Panel with Parent Gate ===== */
+#screen-settings { background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; }
+.parent-gate-card, .settings-card {
+  background: var(--bg-card);
+  border: 5px solid var(--ink);
+  border-radius: var(--r-lg);
+  padding: 48px 64px; text-align: center;
+  min-width: 600px; box-shadow: var(--sh-3);
+}
+.parent-gate-card h2, .settings-card h2 { font-size: 48px; margin: 0 0 24px; }
+.parent-gate-card p { font-size: 28px; margin: 0 0 24px; font-weight: 700; }
+.pg-buttons { display: flex; gap: 16px; justify-content: center; }
+.pg-buttons .btn { min-width: 120px; height: 90px; font-size: 48px; }
+.pg-error { margin-top: 16px; color: var(--gentle-no); font-weight: 900; }
+.pg-error.hidden { display: none; }
+.settings-card .btn { display: block; margin: 16px auto; min-width: 400px; }
+
+/* ===== PORTRAIT REFLOW ===== */
+
+#stage[data-orient="portrait"] .splash-title {
+  top: 96px;
+  font-size: 76px;
+  letter-spacing: 1px;
+}
+/* Centre the hero mascot in the canvas (was pinned near the top, leaving a big
+   empty void below). Bigger, too, so it fills the space and the screen reads
+   as balanced: title up top, mascot in the middle, play button at the bottom. */
+#stage[data-orient="portrait"] .splash-mascot {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 384px;
+  height: 384px;
+}
+#stage[data-orient="portrait"] .splash-play {
+  bottom: 150px;
+}
+#stage[data-orient="portrait"] .splash-play.btn.pill {
+  min-width: 360px;
+  height: 110px;
+  font-size: 44px;
+}
+#stage[data-orient="portrait"] .cog-corner {
+  top: 24px;
+  right: 24px;
+  /* Tight padding when the label is hidden — just the icon stays. */
+  padding: 6px;
+}
+/* In portrait the "PARENTS" label is dropped — the icon alone fits without
+   colliding with the title or the mascot. Parents who know the gate is
+   long-press on the cog will still find it. */
+#stage[data-orient="portrait"] .cog-corner .cog-label {
+  display: none;
+}
+#stage[data-orient="portrait"] .cog-corner svg {
+  width: 44px;
+  height: 44px;
+}
+
+#stage[data-orient="portrait"] .world-grid {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  padding: 92px 20px 24px;
+  gap: 20px;
+}
+#stage[data-orient="portrait"] .world-panel {
+  padding: 14px 16px;
+}
+#stage[data-orient="portrait"] .world-title {
+  font-size: 28px;
+  margin: 0 0 10px;
+}
+#stage[data-orient="portrait"] .level-path {
+  /* Bigger nodes with more generous gaps so each panel feels open and the
+     level buttons are easy targets for little fingers, rather than a tight
+     cluster lost in the middle of the panel. */
+  grid-template-columns: repeat(3, 96px);
+  grid-template-rows: repeat(2, 96px);
+  gap: 16px 28px;
+  height: calc(100% - 42px);
+  align-content: center;
+  justify-content: center;
+}
+#stage[data-orient="portrait"] .level-node {
+  width: 96px;
+  height: 96px;
+  font-size: 42px;
+  border-width: 4px;
+}
+#stage[data-orient="portrait"] .level-node.locked svg {
+  width: 40px;
+  height: 40px;
+}
+#stage[data-orient="portrait"] .home-btn {
+  top: 20px;
+  left: 20px;
+  width: 64px;
+  height: 64px;
+}
+#stage[data-orient="portrait"] .star-meter.total {
+  top: 28px;
+  right: 20px;
+  font-size: 22px;
+}
+#stage[data-orient="portrait"] .star-meter.total svg.star {
+  width: 26px;
+  height: 26px;
+}
+
+#stage[data-orient="portrait"] .worksheet {
+  left: 50%;
+  /* Vertically centered between topbar and tray. Centring (not a fixed top)
+     means the worksheet sits in the middle of the canvas at any phone
+     aspect ratio — iPhone SE, iPhone 14, Pixel 7 all look balanced. */
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: auto;
+}
+/* Carry slot fallback positioning for portrait — JS in add.js fine-tunes
+   via requestAnimationFrame, but a sane default keeps the slot above the
+   tens column before/if RAF has fired. */
+#stage[data-orient="portrait"] .carry-slot {
+  top: -80px;
+  left: 0;
+}
+
+/* Digit tray: always wrap into 2 rows of 5 in portrait so tiles can be larger */
+#stage[data-orient="portrait"] .digit-tray:not(.two-row) {
+  left: 16px;
+  right: 16px;
+  width: auto;
+  bottom: 16px;
+  height: auto;
+  flex-wrap: wrap;
+  padding: 10px;
+  gap: 8px;
+  align-content: center;
+  justify-content: center;
+}
+
+/* Carry-mode tray (single-digit row 1 + compound row 2) — both rows compress */
+#stage[data-orient="portrait"] .digit-tray.two-row {
+  left: 16px;
+  right: 16px;
+  width: auto;
+  bottom: 16px;
+  height: auto;
+  padding: 10px;
+  gap: 6px;
+}
+#stage[data-orient="portrait"] .digit-tray.two-row .tile-row {
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+#stage[data-orient="portrait"] .corner-mascot {
+  top: 78px;
+  right: 12px;
+  bottom: auto;
+  /* ~1.4× bigger so the buddy reads clearly on a phone. Sits top-right, clear
+     of the centred equation (which spans ~200–520 of the 720 canvas). */
+  width: 168px;
+  height: 168px;
+}
+#stage[data-orient="portrait"] #screen-add.two-row-active .corner-mascot,
+#stage[data-orient="portrait"] #screen-sub.two-row-active .corner-mascot {
+  top: 84px;
+  bottom: auto;
+}
+
+/* All tile choices the kid picks from are the same dimensions in portrait,
+   regardless of variant. 5-across at 110×96 + 8px gap = 582 fits in a
+   656-wide tray; rows wrap naturally when there are more than 5 tiles
+   (carry's 10 digits + 9 compounds, or mult-tap's 10-25 option range).
+   At iPhone SE scale 0.444: 110 * 0.444 = ~49 physical → meets 44pt. */
+#stage[data-orient="portrait"] .tile,
+#stage[data-orient="portrait"] .tile.compound,
+#stage[data-orient="portrait"] .tile.compound.mult-option {
+  width: 110px;
+  height: 96px;
+  font-size: 56px;
+  border-width: 3px;
+}
+/* Two-digit values (10-18, etc.) need a smaller font to fit the tile width
+   without changing the box. Keep digits visually centered with the rest. */
+#stage[data-orient="portrait"] .tile.compound,
+#stage[data-orient="portrait"] .tile.compound.mult-option {
+  font-size: 48px;
+}
+#stage[data-orient="portrait"] .slot {
+  width: 120px;
+  height: 150px;
+  font-size: 110px;
+  border-width: 3px;
+}
+
+/* Worksheet cells — larger in portrait to give the math problem visual weight
+   and use the available vertical space between topbar and tray. */
+#stage[data-orient="portrait"] .worksheet .cell,
+#stage[data-orient="portrait"] .worksheet .row.bot .op {
+  width: 120px;
+  height: 150px;
+  font-size: 110px;
+  line-height: 150px;
+}
+#stage[data-orient="portrait"] .worksheet .line {
+  margin-left: 92px;
+  max-width: 272px;
+}
+
+/* Topbar stays full-width but with smaller padding */
+#stage[data-orient="portrait"] .topbar {
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+#stage[data-orient="portrait"] .mult-problem {
+  top: 90px;
+  gap: 8px;
+}
+#stage[data-orient="portrait"] .op-chip {
+  width: 80px;
+  height: 90px;
+  font-size: 64px;
+  border-width: 3px;
+}
+#stage[data-orient="portrait"] .op-sym {
+  font-size: 54px;
+}
+#stage[data-orient="portrait"] .firefly-area {
+  /* Wrap lily-pads into a 2-wide grid so 3–4 groups stay compact instead of a
+     tall single column. The layout engine re-centres this and scales to fit. */
+  flex-flow: row wrap;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 432px;
+  height: auto;
+  gap: 14px 12px;
+  justify-content: center;
+  align-content: center;
+}
+#stage[data-orient="portrait"] .lily-group {
+  width: 200px;
+  height: 180px;
+}
+#stage[data-orient="portrait"] .block-grid .block-host {
+  width: 60px;
+  height: 60px;
+}
+#stage[data-orient="portrait"] .block-grid[data-count="5"] .block-host {
+  width: 46px;
+  height: 46px;
+}
+#stage[data-orient="portrait"] .total-reveal {
+  top: auto;
+  /* Sits clearly above the digit tray (tray bottom-anchored at 16, height ~240). */
+  bottom: 290px;
+  width: 296px;
+  height: 116px;
+  padding: 0 16px;
+}
+#stage[data-orient="portrait"] .total-reveal .slot,
+#stage[data-orient="portrait"] .ans-host .slot {
+  width: 96px;
+  height: 96px;
+  font-size: 56px;
+}
+#stage[data-orient="portrait"] .ans-host .display {
+  font-size: 27px;
+}
+/* Portrait: trays + pile live inside .play-col, which the layout engine centres
+   in the band between the problem and the answer box (and scales down to fit
+   short phones). They flow in-column here rather than being absolutely pinned. */
+#stage[data-orient="portrait"] .play-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: calc(100% - 32px);
+}
+#stage[data-orient="portrait"] .group-row {
+  position: static;
+  top: auto; left: auto; right: auto;
+  transform: none;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+}
+#stage[data-orient="portrait"] .group-tray {
+  min-width: 0;
+  width: 100%;
+  flex-direction: row;
+  padding: 10px;
+  gap: 6px;
+  min-height: 70px;
+}
+#stage[data-orient="portrait"] .group-tray .ghost {
+  width: 48px;
+  height: 48px;
+}
+#stage[data-orient="portrait"] #screen-mult-drag .block-host {
+  width: 48px;
+  height: 48px;
+}
+/* Mult-drag portrait stacking (top→bottom): topbar, problem, group trays,
+   pile, answer host, digit tray. All visible at once per the simplified flow
+   in mult-drag.js (kid can answer immediately; pile is for counting only).
+   Block-pile is centred vertically and answer host is anchored above the
+   tray so they distribute evenly on any phone height. */
+#stage[data-orient="portrait"] .block-pile {
+  position: static;
+  top: auto; bottom: auto; left: auto; right: auto;
+  transform: none;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 12px;
+  gap: 8px;
+}
+#stage[data-orient="portrait"] .ans-host {
+  /* Sits clearly above the digit tray. Mult answers can include compound
+     tiles that wrap to 3 rows in the tray, so allow ~360px for the tray
+     plus a 24px gap. */
+  top: auto;
+  bottom: 384px;
+  padding: 10px 16px;
+}
+#stage[data-orient="portrait"] .count-chip {
+  font-size: 14px;
+  padding: 1px 8px;
+  bottom: -14px;
+}
+#stage[data-orient="portrait"] .complete-title {
+  top: 60px;
+  font-size: 60px;
+}
+#stage[data-orient="portrait"] #screen-complete .star-meter.big {
+  top: 160px;
+  gap: 16px;
+}
+#stage[data-orient="portrait"] .star-meter.big .star {
+  width: 76px;
+  height: 76px;
+}
+#stage[data-orient="portrait"] .complete-mascot {
+  /* Vertically centred between the star meter (top) and the buttons (bottom),
+     adapts to any phone height. Enlarged to fill the celebration space. */
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 232px;
+  height: 232px;
+}
+#stage[data-orient="portrait"] .complete-buttons {
+  flex-direction: column;
+  bottom: 40px;
+  gap: 12px;
+  width: 90%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#stage[data-orient="portrait"] .complete-buttons .btn {
+  /* Force all 3 buttons (ghost + success + ghost) to the same width.
+     Without this, flex column with align-items:normal stretches success
+     to fill the parent while min-width holds the ghosts at their floor,
+     producing wildly mismatched widths. */
+  width: 100%;
+  min-width: 0;
+  height: 80px;
+  font-size: 28px;
+}
+#stage[data-orient="portrait"] .parent-gate-card,
+#stage[data-orient="portrait"] .settings-card {
+  min-width: 0;
+  width: min(560px, 92%);
+  padding: 32px 24px;
+}
+#stage[data-orient="portrait"] .parent-gate-card h2,
+#stage[data-orient="portrait"] .settings-card h2 {
+  font-size: 36px;
+  margin: 0 0 16px;
+}
+#stage[data-orient="portrait"] .parent-gate-card p {
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+#stage[data-orient="portrait"] .pg-buttons .btn {
+  min-width: 80px;
+  height: 70px;
+  font-size: 36px;
+}
+#stage[data-orient="portrait"] .settings-card .btn {
+  min-width: 280px;
+}
+
+</style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="stage" data-world="add"></div>
+  </div>
+  <script>
+(() => {
+  // src/logic.js
+  var SEEDS = {
+    add: {
+      1: [[12, 3], [21, 4], [13, 5], [32, 6], [41, 5]],
+      2: [[12, 13], [21, 34], [25, 22], [41, 15], [33, 24]],
+      3: [[15, 6], [18, 4], [23, 8], [27, 5], [19, 7]],
+      4: [[16, 25], [27, 18], [35, 27], [48, 23], [56, 27]],
+      5: [[14, 22], [17, 8], [36, 27], [25, 13], [48, 19]],
+      6: [[47, 38], [56, 24], [39, 27], [65, 18], [49, 36]]
+    },
+    sub: {
+      1: [[15, 3], [24, 2], [19, 4], [38, 5], [47, 3]],
+      2: [[45, 23], [38, 17], [76, 34], [59, 26], [88, 45]],
+      3: [[22, 7], [31, 4], [24, 9], [32, 5], [43, 8]],
+      4: [[32, 15], [41, 23], [52, 28], [65, 37], [81, 44]],
+      5: [[45, 23], [32, 15], [56, 28], [67, 45], [82, 47]],
+      6: [[51, 28], [73, 46], [84, 37], [92, 58], [65, 29]]
+    },
+    mult: {
+      1: { mode: "tap", pairs: [[2, 1], [2, 2], [2, 3], [2, 4], [2, 5]] },
+      2: { mode: "tap", pairs: [[3, 1], [3, 2], [3, 3], [3, 4], [3, 5]] },
+      3: { mode: "tap", pairs: [[4, 1], [4, 2], [4, 3], [4, 4], [4, 5]] },
+      4: { mode: "drag", pairs: [[2, 3], [3, 2], [3, 3], [4, 2], [2, 4]] },
+      5: { mode: "drag", pairs: [[3, 4], [4, 3], [3, 5], [5, 3], [4, 4]] },
+      6: { mode: "drag", pairs: [[5, 4], [4, 5], [5, 5], [3, 5], [4, 4]] }
+    }
+  };
+  function getProblems(world, level) {
+    if (world === "mult") {
+      const { mode, pairs } = SEEDS.mult[level];
+      return pairs.map(([a, b]) => ({ op: "\xD7", a, b, answer: a * b, mode }));
+    }
+    const op = world === "add" ? "+" : "-";
+    return SEEDS[world][level].map(([a, b]) => ({
+      op,
+      a,
+      b,
+      answer: op === "+" ? a + b : a - b
+    }));
+  }
+  function analyze(p) {
+    const aTens = Math.floor(p.a / 10);
+    const aOnes = p.a % 10;
+    const bTens = Math.floor(p.b / 10);
+    const bOnes = p.b % 10;
+    const answerTens = Math.floor(p.answer / 10);
+    const answerOnes = p.answer % 10;
+    if (p.op === "+") {
+      return {
+        aTens,
+        aOnes,
+        bTens,
+        bOnes,
+        answerTens,
+        answerOnes,
+        carry: aOnes + bOnes >= 10
+      };
+    }
+    if (p.op === "-") {
+      const needsBorrow = aOnes < bOnes;
+      const out = {
+        aTens,
+        aOnes,
+        bTens,
+        bOnes,
+        answerTens,
+        answerOnes,
+        borrow: needsBorrow
+      };
+      if (needsBorrow) {
+        out.borrowFromTens = aTens - 1;
+        out.borrowedOnes = aOnes + 10;
+      }
+      return out;
+    }
+    return { aTens, aOnes, bTens, bOnes, answerTens, answerOnes };
+  }
+  function createAnswerState(answer) {
+    const digits = answer < 10 ? [answer] : [Math.floor(answer / 10), answer % 10];
+    const slots = digits.map(() => null);
+    return {
+      expected: digits,
+      slots,
+      activeIndex: slots.length - 1,
+      wrongCount: 0,
+      lastDropCorrect: null
+    };
+  }
+  function dropDigit(state2, digit, targetIndex = state2.activeIndex) {
+    if (targetIndex !== state2.activeIndex || state2.slots[targetIndex] !== null) {
+      return { ...state2, lastDropCorrect: false, wrongCount: state2.wrongCount + 1 };
+    }
+    if (digit !== state2.expected[targetIndex]) {
+      return { ...state2, lastDropCorrect: false, wrongCount: state2.wrongCount + 1 };
+    }
+    const slots = state2.slots.slice();
+    slots[targetIndex] = digit;
+    const nextActive = targetIndex - 1;
+    return {
+      ...state2,
+      slots,
+      activeIndex: nextActive >= 0 ? nextActive : -1,
+      lastDropCorrect: true
+    };
+  }
+  function dropCompound(state2, compoundValue, expectedSum) {
+    if (state2.slots.length !== 2 || state2.activeIndex !== state2.slots.length - 1) {
+      return { ...state2, lastDropCorrect: false, wrongCount: state2.wrongCount + 1 };
+    }
+    if (compoundValue !== expectedSum) {
+      return { ...state2, lastDropCorrect: false, wrongCount: state2.wrongCount + 1 };
+    }
+    const onesDigit = compoundValue % 10;
+    const tensDigit = Math.floor(compoundValue / 10);
+    if (onesDigit !== state2.expected[state2.slots.length - 1]) {
+      return { ...state2, lastDropCorrect: false, wrongCount: state2.wrongCount + 1 };
+    }
+    const slots = state2.slots.slice();
+    slots[state2.slots.length - 1] = onesDigit;
+    return {
+      ...state2,
+      slots,
+      activeIndex: 0,
+      lastDropCorrect: true,
+      carryFromCompound: tensDigit
+    };
+  }
+  function isComplete(state2) {
+    return state2.slots.every((s) => s !== null);
+  }
+  function starsFor(wrongCount) {
+    if (wrongCount <= 1) return 3;
+    if (wrongCount <= 4) return 2;
+    return 1;
+  }
+  var KEY_PREFIX = "bm.stars";
+  function loadProgress(storage = globalThis.localStorage) {
+    const out = { add: {}, sub: {}, mult: {}, unlockAll: false };
+    if (!storage) return out;
+    for (const w of ["add", "sub", "mult"]) {
+      for (let l = 1; l <= 6; l++) {
+        const v = storage.getItem(`${KEY_PREFIX}.${w}.${l}`);
+        if (v) out[w][l] = parseInt(v, 10);
+      }
+    }
+    out.unlockAll = storage.getItem("bm.unlockAll") === "1";
+    return out;
+  }
+  function recordStars(storage, world, level, stars) {
+    if (!storage) return;
+    const key = `${KEY_PREFIX}.${world}.${level}`;
+    const prior = parseInt(storage.getItem(key) || "0", 10);
+    if (stars > prior) storage.setItem(key, String(stars));
+  }
+  function isLevelUnlocked(progress, world, level) {
+    if (progress.unlockAll) return true;
+    if (level === 1) return true;
+    return (progress[world][level - 1] || 0) > 0;
+  }
+  function totalStars(progress) {
+    let n = 0;
+    for (const w of ["add", "sub", "mult"]) {
+      for (const k in progress[w]) n += progress[w][k];
+    }
+    return n;
+  }
+
+  // src/svg.js
+  var banji = (state2 = "idle") => `<svg class="mascot banji ${state2}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Banji the canary">
+<g class="tail">
+<path d="M78 150 Q 64 168 56 184 Q 78 180 100 174 Q 122 180 144 184 Q 136 168 122 150 Z" fill="#FFD445" stroke="#4A3522" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M88 168 L 86 180 M 100 170 L 100 182 M 112 168 L 114 180" stroke="#4A3522" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M78 152 Q 80 162 86 168" stroke="#E5A722" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M122 152 Q 120 162 114 168" stroke="#E5A722" stroke-width="2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="leg-l">
+<path d="M88 162 L 84 178" stroke="#FF8A3D" stroke-width="5.5" stroke-linecap="round"/>
+<path d="M84 178 L 78 184 M 84 178 L 84 186 M 84 178 L 90 184" stroke="#FF8A3D" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path d="M84 178 L 78 184 M 84 178 L 84 186 M 84 178 L 90 184" stroke="#4A3522" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="leg-r">
+<path d="M112 162 L 116 178" stroke="#FF8A3D" stroke-width="5.5" stroke-linecap="round"/>
+<path d="M116 178 L 110 184 M 116 178 L 116 186 M 116 178 L 122 184" stroke="#FF8A3D" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+<path d="M116 178 L 110 184 M 116 178 L 116 186 M 116 178 L 122 184" stroke="#4A3522" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="body">
+<ellipse cx="100" cy="128" rx="46" ry="40" fill="#FFD445" stroke="#4A3522" stroke-width="4"/>
+<ellipse cx="100" cy="138" rx="28" ry="22" fill="#FFE383"/>
+<ellipse cx="84" cy="118" rx="6" ry="4" fill="#FFE89B" opacity="0.7"/>
+</g>
+<g class="wing-l">
+<path d="M68 108 Q 40 118 38 148 Q 54 156 70 138 Q 76 122 72 108 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M48 130 L 60 134 M 52 142 L 64 144" stroke="#4A3522" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</g>
+<g class="wing-r">
+<path d="M132 108 Q 160 118 162 148 Q 146 156 130 138 Q 124 122 128 108 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M152 130 L 140 134 M 148 142 L 136 144" stroke="#4A3522" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</g>
+<g class="head">
+<circle cx="100" cy="72" r="36" fill="#FFD445" stroke="#4A3522" stroke-width="4"/>
+<ellipse cx="74" cy="84" rx="6" ry="4" fill="#FF9FAE" opacity="0.75"/>
+<ellipse cx="126" cy="84" rx="6" ry="4" fill="#FF9FAE" opacity="0.75"/>
+<g class="brow-l">
+<g class="brow-state idle"><path d="M76 56 Q 84 53 92 56" stroke="#4A3522" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M76 50 Q 84 46 92 50" stroke="#4A3522" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="brow-r">
+<g class="brow-state idle"><path d="M108 56 Q 116 53 124 56" stroke="#4A3522" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M108 50 Q 116 46 124 50" stroke="#4A3522" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="eye-l">
+<g class="eye-state idle">
+<ellipse cx="86" cy="70" rx="7" ry="9" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<circle cx="87" cy="72" r="4.2" fill="#2A1F18"/>
+<circle cx="89" cy="69" r="1.6" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M79 71 Q 86 64 93 71" stroke="#4A3522" stroke-width="3.5" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="86" cy="70" r="8" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<path d="M86 70 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#4A3522" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<circle cx="86" cy="70" r="9" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<circle cx="86" cy="70" r="5" fill="#2A1F18"/>
+<circle cx="88" cy="68" r="1.8" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="eye-r">
+<g class="eye-state idle">
+<ellipse cx="114" cy="70" rx="7" ry="9" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<circle cx="115" cy="72" r="4.2" fill="#2A1F18"/>
+<circle cx="117" cy="69" r="1.6" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M107 71 Q 114 64 121 71" stroke="#4A3522" stroke-width="3.5" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="114" cy="70" r="8" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<path d="M114 70 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#4A3522" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<circle cx="114" cy="70" r="9" fill="#FFFFFF" stroke="#4A3522" stroke-width="2.5"/>
+<circle cx="114" cy="70" r="5" fill="#2A1F18"/>
+<circle cx="116" cy="68" r="1.8" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="mouth">
+<g class="mouth-state idle">
+<path d="M91 86 L 100 92 L 109 86 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M91 86 L 109 86" stroke="#4A3522" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+<g class="mouth-state happy"><path d="M91 86 Q 100 96 109 86 Q 105 92 100 92 Q 95 92 91 86 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="2.5" stroke-linejoin="round"/></g>
+<g class="mouth-state super-happy">
+<path d="M88 84 Q 100 102 112 84 Q 108 96 100 96 Q 92 96 88 84 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M93 91 Q 100 94 107 91" stroke="#FFB780" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</g>
+<g class="mouth-state dizzy"><path d="M91 90 Q 95 86 100 90 Q 105 94 109 90" stroke="#4A3522" stroke-width="2.5" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state surprised"><ellipse cx="100" cy="90" rx="4" ry="5" fill="#FF8A3D" stroke="#4A3522" stroke-width="2.5"/></g>
+</g>
+<g class="hat">
+<path d="M62 52 Q 60 28 100 26 Q 140 28 138 52 Q 132 56 100 56 Q 68 56 62 52 Z" fill="#FF8A3D" stroke="#4A3522" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M66 40 Q 100 36 134 40" stroke="#F7E9C0" stroke-width="6" stroke-linecap="round" fill="none"/>
+<path d="M66 40 Q 100 36 134 40" stroke="#4A3522" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.4"/>
+<path d="M62 52 Q 100 56 138 52" stroke="#4A3522" stroke-width="1.8" fill="none"/>
+<circle cx="100" cy="20" r="9" fill="#F7E9C0" stroke="#4A3522" stroke-width="3"/>
+<circle cx="97" cy="18" r="1.4" fill="#4A3522" opacity="0.35"/>
+<circle cx="102" cy="22" r="1.4" fill="#4A3522" opacity="0.35"/>
+<circle cx="100" cy="18" r="1.4" fill="#4A3522" opacity="0.35"/>
+<path d="M100 26 L 100 30" stroke="#4A3522" stroke-width="2" stroke-linecap="round"/>
+</g>
+</g>
+</svg>`;
+  var mo = (state2 = "idle") => `<svg class="mascot mo ${state2}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Mo the axolotl">
+<g class="tail">
+<path d="M148 122 Q 184 116 192 138 Q 184 162 148 152 Q 144 138 148 122 Z" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="4" stroke-linejoin="round"/>
+<path d="M156 130 Q 174 138 172 148" stroke="#3A2A3B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<ellipse cx="172" cy="138" rx="5" ry="8" fill="#FBEFE9" opacity="0.85"/>
+</g>
+<g class="leg-l">
+<ellipse cx="74" cy="166" rx="10" ry="7" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="3.5"/>
+<path d="M68 170 L 64 174 M 74 172 L 74 176 M 80 170 L 84 174" stroke="#3A2A3B" stroke-width="2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="leg-r">
+<ellipse cx="120" cy="166" rx="10" ry="7" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="3.5"/>
+<path d="M114 170 L 110 174 M 120 172 L 120 176 M 126 170 L 130 174" stroke="#3A2A3B" stroke-width="2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="body">
+<ellipse cx="100" cy="132" rx="50" ry="36" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="4"/>
+<ellipse cx="100" cy="144" rx="34" ry="22" fill="#FBEFE9"/>
+<ellipse cx="72" cy="118" rx="4" ry="6" fill="#5FB8B8" opacity="0.55"/>
+<ellipse cx="124" cy="120" rx="3.5" ry="5" fill="#5FB8B8" opacity="0.55"/>
+<ellipse cx="92" cy="112" rx="2.5" ry="3.5" fill="#5FB8B8" opacity="0.4"/>
+</g>
+<g class="arm-l">
+<path d="M62 120 Q 46 134 44 158 Q 54 162 60 156 Q 70 144 76 132 Z" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M44 160 L 40 165 M 50 162 L 48 168 M 54 162 L 56 168" stroke="#3A2A3B" stroke-width="2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="arm-r">
+<path d="M138 120 Q 154 134 156 158 Q 146 162 140 156 Q 130 144 124 132 Z" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M156 160 L 160 165 M 150 162 L 152 168 M 146 162 L 144 168" stroke="#3A2A3B" stroke-width="2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="head">
+<g class="gill-l">
+<path d="M68 60 Q 48 50 32 38 Q 44 40 58 54 Q 64 58 68 60 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M62 76 Q 38 76 22 72 Q 36 86 56 82 Q 62 80 62 76 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M66 90 Q 46 100 34 116 Q 52 110 60 98 Q 66 94 66 90 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M48 46 Q 52 50 54 56" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M40 76 Q 48 76 54 78" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M50 100 Q 54 98 58 96" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+</g>
+<g class="gill-r">
+<path d="M132 60 Q 152 50 168 38 Q 156 40 142 54 Q 136 58 132 60 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M138 76 Q 162 76 178 72 Q 164 86 144 82 Q 138 80 138 76 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M134 90 Q 154 100 166 116 Q 148 110 140 98 Q 134 94 134 90 Z" fill="#FF7A8E" stroke="#3A2A3B" stroke-width="3" stroke-linejoin="round"/>
+<path d="M152 46 Q 148 50 146 56" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M160 76 Q 152 76 146 78" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M150 100 Q 146 98 142 96" stroke="#FFA3B0" stroke-width="2" fill="none" stroke-linecap="round"/>
+</g>
+<ellipse cx="100" cy="76" rx="42" ry="36" fill="#F4D6CC" stroke="#3A2A3B" stroke-width="4"/>
+<ellipse cx="100" cy="58" rx="20" ry="6" fill="#FBEFE9" opacity="0.6"/>
+<ellipse cx="70" cy="88" rx="7" ry="5" fill="#FFAFBA" opacity="0.65"/>
+<ellipse cx="130" cy="88" rx="7" ry="5" fill="#FFAFBA" opacity="0.65"/>
+<g class="brow-l">
+<g class="brow-state idle"><path d="M76 58 Q 84 55 92 58" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M76 52 Q 84 47 92 52" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="brow-r">
+<g class="brow-state idle"><path d="M108 58 Q 116 55 124 58" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M108 52 Q 116 47 124 52" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="eye-l">
+<g class="eye-state idle">
+<circle cx="86" cy="72" r="7" fill="#3A2A3B"/>
+<circle cx="88" cy="69" r="2.6" fill="#FFFFFF"/>
+<circle cx="84" cy="74" r="1.1" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M78 74 Q 86 66 94 74" stroke="#3A2A3B" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="86" cy="72" r="7.5" fill="#FFFFFF" stroke="#3A2A3B" stroke-width="2.5"/>
+<path d="M86 72 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#3A2A3B" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<circle cx="86" cy="72" r="9" fill="#FFFFFF" stroke="#3A2A3B" stroke-width="2.5"/>
+<circle cx="86" cy="72" r="5" fill="#3A2A3B"/>
+<circle cx="88" cy="70" r="1.8" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="eye-r">
+<g class="eye-state idle">
+<circle cx="114" cy="72" r="7" fill="#3A2A3B"/>
+<circle cx="116" cy="69" r="2.6" fill="#FFFFFF"/>
+<circle cx="112" cy="74" r="1.1" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M106 74 Q 114 66 122 74" stroke="#3A2A3B" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="114" cy="72" r="7.5" fill="#FFFFFF" stroke="#3A2A3B" stroke-width="2.5"/>
+<path d="M114 72 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#3A2A3B" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<circle cx="114" cy="72" r="9" fill="#FFFFFF" stroke="#3A2A3B" stroke-width="2.5"/>
+<circle cx="114" cy="72" r="5" fill="#3A2A3B"/>
+<circle cx="116" cy="70" r="1.8" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="mouth">
+<g class="mouth-state idle"><path d="M92 92 Q 100 99 108 92" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state happy"><path d="M88 90 Q 100 104 112 90" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state super-happy">
+<path d="M86 88 Q 100 106 114 88 Q 110 102 100 102 Q 90 102 86 88 Z" fill="#3A2A3B" stroke="#3A2A3B" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M92 96 Q 100 98 108 96" stroke="#FF8FA0" stroke-width="2" fill="none" stroke-linecap="round"/>
+</g>
+<g class="mouth-state dizzy"><path d="M91 94 Q 95 90 100 94 Q 105 98 109 94" stroke="#3A2A3B" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state surprised"><ellipse cx="100" cy="94" rx="4" ry="5.5" fill="#3A2A3B"/></g>
+</g>
+</g>
+</svg>`;
+  var pip = (state2 = "idle") => `<svg class="mascot pip ${state2}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Pip the fennec fox">
+<g class="tail">
+<path d="M130 142 Q 170 130 182 156 Q 178 184 144 174 Q 132 168 126 156 Z" fill="#E89A2A" stroke="#5A3F1E" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M170 138 Q 184 156 178 178" stroke="#F8E0A8" stroke-width="10" stroke-linecap="round" fill="none"/>
+<path d="M170 138 Q 184 156 178 178" stroke="#5A3F1E" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.5"/>
+<path d="M150 150 Q 162 158 156 172" stroke="#5A3F1E" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+</g>
+<g class="leg-l">
+<ellipse cx="82" cy="174" rx="9" ry="6.5" fill="#E89A2A" stroke="#5A3F1E" stroke-width="3"/>
+<ellipse cx="82" cy="175" rx="5" ry="3.5" fill="#F8E0A8"/>
+</g>
+<g class="leg-r">
+<ellipse cx="118" cy="174" rx="9" ry="6.5" fill="#E89A2A" stroke="#5A3F1E" stroke-width="3"/>
+<ellipse cx="118" cy="175" rx="5" ry="3.5" fill="#F8E0A8"/>
+</g>
+<g class="body">
+<ellipse cx="100" cy="146" rx="38" ry="30" fill="#E89A2A" stroke="#5A3F1E" stroke-width="4"/>
+<ellipse cx="100" cy="154" rx="22" ry="18" fill="#F8E0A8"/>
+<circle cx="84" cy="164" r="6" fill="#E89A2A" stroke="#5A3F1E" stroke-width="3"/>
+<circle cx="116" cy="164" r="6" fill="#E89A2A" stroke="#5A3F1E" stroke-width="3"/>
+<path d="M81 167 L 80 170 M 84 168 L 84 171 M 87 167 L 88 170" stroke="#5A3F1E" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+<path d="M113 167 L 112 170 M 116 168 L 116 171 M 119 167 L 120 170" stroke="#5A3F1E" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+</g>
+<g class="head">
+<g class="ear-l">
+<path d="M82 90 Q 58 64 54 14 Q 70 16 84 56 Q 90 72 86 88 Z" fill="#E89A2A" stroke="#5A3F1E" stroke-width="4" stroke-linejoin="round"/>
+<path d="M82 84 Q 66 58 64 24 Q 74 28 80 56 Q 84 70 82 84 Z" fill="#F8E0A8"/>
+<path d="M70 32 Q 76 50 80 64" stroke="#E89A2A" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+</g>
+<g class="ear-r">
+<path d="M118 90 Q 142 64 146 14 Q 130 16 116 56 Q 110 72 114 88 Z" fill="#E89A2A" stroke="#5A3F1E" stroke-width="4" stroke-linejoin="round"/>
+<path d="M118 84 Q 134 58 136 24 Q 126 28 120 56 Q 116 70 118 84 Z" fill="#F8E0A8"/>
+<path d="M130 32 Q 124 50 120 64" stroke="#E89A2A" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
+<g class="accessory">
+<path d="M138 60 L 132 50 M 140 56 L 138 48 M 144 54 L 146 46 M 148 58 L 154 50 M 150 62 L 158 60 M 148 66 L 156 70 M 144 68 L 144 76" stroke="#F8D27A" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="142" cy="60" r="6.5" fill="#F8D27A" stroke="#5A3F1E" stroke-width="2"/>
+<circle cx="142" cy="60" r="3" fill="#E89A2A"/>
+<path d="M142 66 Q 148 78 156 86" stroke="#7AB344" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+</g>
+</g>
+<path d="M68 96 Q 68 64 100 60 Q 132 64 132 96 Q 132 116 116 124 Q 100 130 84 124 Q 68 116 68 96 Z" fill="#E89A2A" stroke="#5A3F1E" stroke-width="4" stroke-linejoin="round"/>
+<path d="M80 96 Q 82 110 92 118 Q 100 124 108 118 Q 118 110 120 96 Q 118 102 100 102 Q 82 102 80 96 Z" fill="#F8E0A8"/>
+<circle cx="78" cy="102" r="3.5" fill="#FF6B6B" opacity="0.7"/>
+<circle cx="122" cy="102" r="3.5" fill="#FF6B6B" opacity="0.7"/>
+<g class="brow-l">
+<g class="brow-state idle"><path d="M80 80 Q 88 77 94 80" stroke="#5A3F1E" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M80 74 Q 88 70 94 74" stroke="#5A3F1E" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="brow-r">
+<g class="brow-state idle"><path d="M106 80 Q 112 77 120 80" stroke="#5A3F1E" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+<g class="brow-state up"><path d="M106 74 Q 112 70 120 74" stroke="#5A3F1E" stroke-width="3" stroke-linecap="round" fill="none"/></g>
+</g>
+<g class="eye-l">
+<g class="eye-state idle">
+<ellipse cx="86" cy="94" rx="6" ry="8" fill="#2A1F18"/>
+<circle cx="88" cy="91" r="2.2" fill="#FFFFFF"/>
+<circle cx="85" cy="96" r="1" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M78 96 Q 86 88 94 96" stroke="#2A1F18" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="86" cy="94" r="7" fill="#FFFFFF" stroke="#5A3F1E" stroke-width="2.5"/>
+<path d="M86 94 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#5A3F1E" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<ellipse cx="86" cy="94" rx="7" ry="9" fill="#FFFFFF" stroke="#5A3F1E" stroke-width="2.5"/>
+<ellipse cx="86" cy="94" rx="4" ry="5" fill="#2A1F18"/>
+<circle cx="88" cy="92" r="1.5" fill="#FFFFFF"/>
+</g>
+</g>
+<g class="eye-r">
+<g class="eye-state idle">
+<ellipse cx="114" cy="94" rx="6" ry="8" fill="#2A1F18"/>
+<circle cx="116" cy="91" r="2.2" fill="#FFFFFF"/>
+<circle cx="113" cy="96" r="1" fill="#FFFFFF"/>
+</g>
+<g class="eye-state super-happy"><path d="M106 96 Q 114 88 122 96" stroke="#2A1F18" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<g class="eye-state dizzy">
+<circle cx="114" cy="94" r="7" fill="#FFFFFF" stroke="#5A3F1E" stroke-width="2.5"/>
+<path d="M114 94 m -5 0 a 5 5 0 1 0 10 0 a 3 3 0 1 0 -6 0 a 1.5 1.5 0 1 0 3 0" stroke="#5A3F1E" stroke-width="1.8" fill="none"/>
+</g>
+<g class="eye-state surprised">
+<ellipse cx="114" cy="94" rx="7" ry="9" fill="#FFFFFF" stroke="#5A3F1E" stroke-width="2.5"/>
+<ellipse cx="114" cy="94" rx="4" ry="5" fill="#2A1F18"/>
+<circle cx="116" cy="92" r="1.5" fill="#FFFFFF"/>
+</g>
+</g>
+<ellipse cx="100" cy="110" rx="4.5" ry="3.5" fill="#2A1F18"/>
+<path d="M100 113 L 100 117" stroke="#5A3F1E" stroke-width="2" stroke-linecap="round" fill="none"/>
+<g class="mouth">
+<g class="mouth-state idle"><path d="M94 118 Q 100 121 106 118" stroke="#5A3F1E" stroke-width="2.5" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state happy"><path d="M91 118 Q 100 126 109 118" stroke="#5A3F1E" stroke-width="2.5" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state super-happy">
+<path d="M88 116 Q 100 132 112 116 Q 108 128 100 128 Q 92 128 88 116 Z" fill="#5A3F1E" stroke="#5A3F1E" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M92 122 Q 100 124 108 122" stroke="#FF6B6B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+<path d="M94 119 L 94 122 M 106 119 L 106 122" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+</g>
+<g class="mouth-state dizzy"><path d="M93 120 Q 96 116 100 120 Q 104 124 107 120" stroke="#5A3F1E" stroke-width="2.5" stroke-linecap="round" fill="none"/></g>
+<g class="mouth-state surprised"><ellipse cx="100" cy="121" rx="4" ry="5" fill="#5A3F1E"/></g>
+</g>
+</g>
+</svg>`;
+  var mango = (state2 = "default") => `
+<svg viewBox="0 0 96 96" class="block mango ${state2}">
+  <path d="M48,12 q35,8 32,45 q-3,28 -32,30 q-29,-2 -32,-30 q-3,-37 32,-45 z" fill="#FF7A1A" stroke="#7A2A04" stroke-width="3"/>
+  <path d="M30,30 q15,-6 30,2" stroke="#FF3E6B" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="48" cy="13" rx="3" ry="6" fill="#4AAE3F" stroke="#2A1B0A" stroke-width="2"/>
+</svg>`;
+  var firefly = (state2 = "default") => `
+<svg viewBox="0 0 96 96" class="block firefly ${state2}">
+  <g class="glow"><circle cx="48" cy="50" r="42" fill="#FFF8C8" opacity="0"/></g>
+  <g class="wing-l"><ellipse cx="32" cy="40" rx="22" ry="14" fill="#FFFAF0" opacity=".75"/></g>
+  <g class="wing-r"><ellipse cx="64" cy="40" rx="22" ry="14" fill="#FFFAF0" opacity=".75"/></g>
+  <g class="body">
+    <ellipse cx="48" cy="55" rx="18" ry="22" fill="#FFE680" stroke="#6A4A08" stroke-width="3"/>
+    <ellipse cx="48" cy="68" rx="14" ry="10" fill="#FFD13A"/>
+    <circle cx="44" cy="48" r="3" fill="#2A1B0A"/>
+    <circle cx="52" cy="48" r="3" fill="#2A1B0A"/>
+  </g>
+</svg>`;
+  var star = (filled = true) => `
+<svg viewBox="0 0 80 80" class="star ${filled ? "filled" : "empty"}">
+  <path d="M40,6 L49,29 L73,32 L55,49 L60,73 L40,61 L20,73 L25,49 L7,32 L31,29 Z"
+        fill="${filled ? "#FFC83A" : "transparent"}"
+        stroke="#2A1B0A" stroke-width="3" stroke-linejoin="round"
+        opacity="${filled ? 1 : 0.35}"/>
+</svg>`;
+  var padlock = () => `
+<svg viewBox="0 0 48 48" class="padlock">
+  <g class="shackle"><path d="M14,22 v-6 a10,10 0 0 1 20,0 v6" stroke="#5C4A2A" stroke-width="5" fill="none" stroke-linecap="round"/></g>
+  <g class="body">
+    <rect x="9" y="20" width="30" height="22" rx="4" fill="#8A6A4A" stroke="#2A1B0A" stroke-width="2"/>
+    <circle cx="24" cy="30" r="3" fill="#2A1B0A"/>
+    <rect x="22" y="30" width="4" height="8" fill="#2A1B0A"/>
+  </g>
+</svg>`;
+  var lilypad = (tint = "var(--world-sky)") => `
+<svg viewBox="0 0 320 280" class="lilypad" preserveAspectRatio="none">
+  <ellipse cx="160" cy="140" rx="150" ry="120" fill="${tint}" stroke="#6A4A28" stroke-width="3" opacity=".95"/>
+</svg>`;
+  var confettiShape = (kind = "rect", color = "#FFC83A") => {
+    const shapes = {
+      rect: `<rect x="-6" y="-3" width="12" height="6" fill="${color}"/>`,
+      tear: `<path d="M0,-8 q6,5 0,16 q-6,-11 0,-16 z" fill="${color}"/>`,
+      circle: `<circle cx="0" cy="0" r="5" fill="${color}"/>`,
+      zig: `<polyline points="-6,-3 -2,3 2,-3 6,3" stroke="${color}" stroke-width="3" fill="none"/>`
+    };
+    return `<svg viewBox="-10 -10 20 20" class="confetti">${shapes[kind] || shapes.rect}</svg>`;
+  };
+  var home = () => `
+<svg viewBox="0 0 48 48" class="icon home"><path d="M24,6 L42,22 V42 H30 V28 H18 V42 H6 V22 Z" fill="none" stroke="#2A1B0A" stroke-width="4" stroke-linejoin="round"/></svg>`;
+  var cog = () => `
+<svg viewBox="0 0 48 48" class="icon cog"><g fill="none" stroke="#6A4B28" stroke-width="3"><circle cx="24" cy="24" r="6"/><path d="M24,4 v6 M24,38 v6 M4,24 h6 M38,24 h6 M10,10 l4,4 M34,34 l4,4 M10,38 l4,-4 M34,14 l4,-4"/></g></svg>`;
+
+  // src/audio.js
+  var ctx = null;
+  var masterGain = null;
+  var enabled = true;
+  function init() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.7;
+    masterGain.connect(ctx.destination);
+  }
+  function unlockAudio() {
+    init();
+    if (ctx.state === "suspended") ctx.resume();
+  }
+  function setEnabled(on) {
+    enabled = !!on;
+  }
+  function isEnabled() {
+    return enabled;
+  }
+  function tone({ freq = 440, type = "sine", dur = 0.2, attack = 5e-3, decay, gain = 0.3, freqEnd, lp }) {
+    if (!enabled || !ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (freqEnd != null) osc.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + attack);
+    const decayTime = decay ?? dur - attack;
+    g.gain.exponentialRampToValueAtTime(1e-4, t + attack + decayTime);
+    let node = osc;
+    if (lp) {
+      const f = ctx.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = lp;
+      osc.connect(f);
+      node = f;
+    }
+    node.connect(g).connect(masterGain);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+  function noise({ dur = 0.2, gain = 0.2, lp, bpFreq, bpEnd }) {
+    if (!enabled || !ctx) return;
+    const t = ctx.currentTime;
+    const samples = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, samples, ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < samples; i++) ch[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+    let node = src;
+    if (lp != null) {
+      const f = ctx.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = lp;
+      src.connect(f);
+      node = f;
+    }
+    if (bpFreq != null) {
+      const f = ctx.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.setValueAtTime(bpFreq, t);
+      if (bpEnd != null) f.frequency.linearRampToValueAtTime(bpEnd, t + dur);
+      node.connect(f);
+      node = f;
+    }
+    node.connect(g).connect(masterGain);
+    src.start(t);
+    src.stop(t + dur);
+  }
+  var sfx = {
+    tilePickup: () => tone({ freq: 200, type: "triangle", dur: 0.06, gain: 0.18 }),
+    tileDropCorrect: () => {
+      tone({ freq: 520, type: "triangle", dur: 0.08, gain: 0.22 });
+      setTimeout(() => tone({ freq: 1318, type: "sine", dur: 0.2, gain: 0.18 }), 50);
+    },
+    correctDing: () => {
+      const notes = [523, 659, 784];
+      notes.forEach((f, i) => setTimeout(() => tone({ freq: f, type: "sine", dur: 0.18, gain: 0.28 }), i * 60));
+      setTimeout(() => tone({ freq: 1568, type: "sine", dur: 0.4, gain: 0.18, decay: 0.4 }), 120);
+    },
+    // Longer, more festive ding for completing a whole multiplication problem.
+    // Ascending C-major arpeggio + a top-octave bell shimmer.
+    correctYay: () => {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((f, i) => setTimeout(() => tone({ freq: f, type: "triangle", dur: 0.22, gain: 0.26 }), i * 80));
+      setTimeout(() => tone({ freq: 1568, type: "sine", dur: 0.5, gain: 0.2, decay: 0.5 }), 320);
+      setTimeout(() => tone({ freq: 2093, type: "sine", dur: 0.5, gain: 0.16, decay: 0.5 }), 400);
+    },
+    tileDropWrong: () => tone({ freq: 180, freqEnd: 90, type: "triangle", dur: 0.25, gain: 0.22, lp: 800 }),
+    slotFill: () => tone({ freq: 1568, type: "sine", dur: 0.12, gain: 0.2 }),
+    carryWhoosh: () => {
+      noise({ dur: 0.5, gain: 0.15, bpFreq: 300, bpEnd: 800 });
+      setTimeout(() => tone({ freq: 1760, type: "sine", dur: 0.08, gain: 0.15 }), 450);
+    },
+    borrowWhoosh: () => {
+      noise({ dur: 0.6, gain: 0.18, lp: 1e3, bpFreq: 600, bpEnd: 200 });
+      tone({ freq: 440, freqEnd: 220, type: "triangle", dur: 0.6, gain: 0.15 });
+    },
+    blockTap: (count = 1) => {
+      const freq = Math.min(2093, 523 + count * 60);
+      tone({ freq, type: "sine", dur: 0.18, gain: 0.2 });
+    },
+    trayFull: () => {
+      tone({ freq: 523, type: "sine", dur: 0.1, gain: 0.2 });
+      setTimeout(() => tone({ freq: 659, type: "sine", dur: 0.12, gain: 0.2 }), 100);
+    },
+    starDing: (n = 1) => {
+      const notes = n === 1 ? [659] : n === 2 ? [659, 784] : [659, 784, 1047];
+      notes.forEach((f, i) => setTimeout(() => tone({ freq: f, type: "sine", dur: 0.25, gain: 0.25 }), i * 150));
+    },
+    levelComplete: () => {
+      [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => setTimeout(() => tone({ freq: f, type: "triangle", dur: 0.18, gain: 0.18 }), i * 90));
+    },
+    nodeUnlockPop: () => tone({ freq: 220, type: "square", dur: 0.08, gain: 0.2 }),
+    lockedTap: () => tone({ freq: 110, freqEnd: 70, type: "triangle", dur: 0.2, gain: 0.15, lp: 600 }),
+    mascotChirp: () => {
+      tone({ freq: 1568, type: "triangle", dur: 0.06, gain: 0.15 });
+      setTimeout(() => tone({ freq: 1976, type: "triangle", dur: 0.06, gain: 0.15 }), 70);
+    },
+    hintHmm: () => tone({ freq: 659, type: "sine", dur: 0.6, gain: 0.1, attack: 0.15 }),
+    transition: () => noise({ dur: 0.28, gain: 0.15, lp: 1500 })
+  };
+
+  // src/screens/splash.js
+  function mount(stage2, state2, router2) {
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-splash";
+    const cogWrap = document.createElement("div");
+    cogWrap.className = "cog-corner";
+    const cogLabel = document.createElement("span");
+    cogLabel.className = "cog-label display";
+    cogLabel.textContent = "PARENTS";
+    cogWrap.appendChild(cogLabel);
+    cogWrap.insertAdjacentHTML("beforeend", cog());
+    sec.appendChild(cogWrap);
+    const title = document.createElement("h1");
+    title.className = "splash-title display";
+    title.textContent = "JHANAV'S MATH";
+    sec.appendChild(title);
+    const mascot = document.createElement("div");
+    mascot.className = "splash-mascot";
+    mascot.insertAdjacentHTML("beforeend", banji("idle"));
+    sec.appendChild(mascot);
+    const btn = document.createElement("button");
+    btn.className = "btn pill splash-play";
+    btn.textContent = "TAP TO PLAY \u25B6";
+    sec.appendChild(btn);
+    const lockUntil = parseInt(localStorage.getItem("bm.parentLockUntil") || "0", 10);
+    const lockRemaining = Math.max(0, lockUntil - Date.now());
+    let lockBanner = null;
+    let lockTimer = null;
+    if (lockRemaining > 0) {
+      lockBanner = document.createElement("div");
+      lockBanner.className = "parent-lock-banner display";
+      const swallow = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      };
+      lockBanner.addEventListener("pointerdown", swallow);
+      lockBanner.addEventListener("pointerup", swallow);
+      lockBanner.addEventListener("click", swallow);
+      sec.appendChild(lockBanner);
+      const tick = () => {
+        const left = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1e3));
+        if (left <= 0) {
+          localStorage.removeItem("bm.parentLockUntil");
+          lockBanner.remove();
+          lockBanner = null;
+          clearInterval(lockTimer);
+        } else {
+          lockBanner.textContent = `PARENTS: PLEASE WAIT ${left}s`;
+        }
+      };
+      tick();
+      lockTimer = setInterval(tick, 250);
+    }
+    function isLocked() {
+      return lockBanner !== null;
+    }
+    function go() {
+      if (isLocked()) return;
+      unlockAudio();
+      sfx.transition();
+      router2.go("map");
+    }
+    btn.addEventListener("pointerup", go);
+    sec.addEventListener("pointerup", (e) => {
+      if (e.target.closest(".cog-corner")) return;
+      if (!e.target.closest("button")) go();
+    });
+    cogWrap.addEventListener("pointerup", () => {
+      if (isLocked()) return;
+      router2.go("settings");
+    });
+    stage2.appendChild(sec);
+    return () => {
+      if (lockTimer) clearInterval(lockTimer);
+      sec.remove();
+    };
+  }
+
+  // src/screens/map.js
+  var WORLDS = [
+    { id: "add", name: "BANANA HILLS" },
+    { id: "sub", name: "MISTY RIVER" },
+    { id: "mult", name: "FIREFLY MEADOW" }
+  ];
+  function mount2(stage2, state2, router2) {
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-map";
+    const progress = loadProgress();
+    const homeBtn = document.createElement("button");
+    homeBtn.className = "home-btn";
+    homeBtn.insertAdjacentHTML("beforeend", home());
+    homeBtn.addEventListener("pointerup", () => router2.go("splash"));
+    sec.appendChild(homeBtn);
+    const meter = document.createElement("div");
+    meter.className = "star-meter total display";
+    meter.insertAdjacentHTML("beforeend", `STARS: ${star(true)} ${totalStars(progress)} / 54`);
+    sec.appendChild(meter);
+    const grid = document.createElement("div");
+    grid.className = "world-grid";
+    sec.appendChild(grid);
+    WORLDS.forEach((w) => {
+      const panel = document.createElement("div");
+      panel.className = `world-panel world-${w.id}`;
+      const worldTitle = document.createElement("h2");
+      worldTitle.className = "world-title display";
+      worldTitle.textContent = w.name;
+      panel.appendChild(worldTitle);
+      const path = document.createElement("div");
+      path.className = "level-path";
+      panel.appendChild(path);
+      for (let l = 1; l <= 6; l++) {
+        const stars = progress[w.id][l] || 0;
+        const unlocked = isLevelUnlocked(progress, w.id, l);
+        const node = document.createElement("button");
+        node.className = `level-node ${unlocked ? "unlocked" : "locked"} stars-${stars}`;
+        node.dataset.world = w.id;
+        node.dataset.level = String(l);
+        if (!unlocked) {
+          node.insertAdjacentHTML("beforeend", padlock());
+        } else {
+          const numEl = document.createElement("span");
+          numEl.className = "display";
+          numEl.textContent = String(l);
+          node.appendChild(numEl);
+          if (stars > 0) {
+            const ribbon = document.createElement("div");
+            ribbon.className = "node-ribbon";
+            for (let s = 0; s < 3; s++) ribbon.insertAdjacentHTML("beforeend", star(s < stars));
+            node.appendChild(ribbon);
+          }
+        }
+        node.addEventListener("pointerup", () => {
+          if (!unlocked) {
+            sfx.lockedTap();
+            node.animate(
+              [{ transform: "rotate(0)" }, { transform: "rotate(6deg)" }, { transform: "rotate(-6deg)" }, { transform: "rotate(0)" }],
+              { duration: 300 }
+            );
+            return;
+          }
+          sfx.transition();
+          router2.go("level", { world: w.id, level: l });
+        });
+        path.appendChild(node);
+      }
+      grid.appendChild(panel);
+    });
+    stage2.dataset.world = "add";
+    stage2.appendChild(sec);
+    return () => sec.remove();
+  }
+
+  // src/drag.js
+  function withinTolerance(rect, x, y, tol = 0) {
+    return x >= rect.left - tol && x <= rect.right + tol && y >= rect.top - tol && y <= rect.bottom + tol;
+  }
+  function rectCenter(r) {
+    return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 };
+  }
+  function findDropTarget(targets, x, y, tol = 0) {
+    let best = null, bestD = Infinity;
+    for (const t of targets) {
+      if (!t.active) continue;
+      if (!withinTolerance(t.rect, x, y, tol)) continue;
+      const c = rectCenter(t.rect);
+      const d = (c.x - x) ** 2 + (c.y - y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best;
+  }
+  function stageInfo() {
+    const stage2 = document.getElementById("stage");
+    const rect = stage2.getBoundingClientRect();
+    const logicalW = stage2.offsetWidth || 1280;
+    const scale = rect.width / logicalW;
+    return { stage: stage2, rect, scale };
+  }
+  function toStageLocal(clientX, clientY) {
+    const { rect, scale } = stageInfo();
+    return {
+      x: (clientX - rect.left) / scale,
+      y: (clientY - rect.top) / scale
+    };
+  }
+  function createDragManager({ getTargets, onPickup, onDrop }) {
+    let dragging = null;
+    function start(e, sourceEl, payload) {
+      e.preventDefault();
+      const tileRect = sourceEl.getBoundingClientRect();
+      const { stage: stage2, rect: sRect, scale } = stageInfo();
+      const tileLocalLeft = (tileRect.left - sRect.left) / scale;
+      const tileLocalTop = (tileRect.top - sRect.top) / scale;
+      const pointerLocal = toStageLocal(e.clientX, e.clientY);
+      const offsetX = pointerLocal.x - tileLocalLeft;
+      const offsetY = pointerLocal.y - tileLocalTop;
+      const origin = { x: tileLocalLeft, y: tileLocalTop };
+      const dragEl = sourceEl.cloneNode(true);
+      dragEl.classList.add("drag-clone");
+      dragEl.classList.remove("dim", "hint-dim", "hint-target");
+      dragEl.style.position = "absolute";
+      dragEl.style.left = `${origin.x}px`;
+      dragEl.style.top = `${origin.y}px`;
+      dragEl.style.margin = "0";
+      dragEl.style.pointerEvents = "none";
+      stage2.appendChild(dragEl);
+      sourceEl.style.visibility = "hidden";
+      dragging = { dragEl, sourceEl, payload, origin, offsetX, offsetY, pointerId: e.pointerId };
+      sourceEl.setPointerCapture?.(e.pointerId);
+      onPickup?.(payload, dragEl);
+      dragEl.classList.add("dragging");
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    }
+    function move(e) {
+      if (!dragging || e.pointerId !== dragging.pointerId) return;
+      const { dragEl, offsetX, offsetY } = dragging;
+      const p = toStageLocal(e.clientX, e.clientY);
+      dragEl.style.left = `${p.x - offsetX}px`;
+      dragEl.style.top = `${p.y - offsetY}px`;
+    }
+    function end(e) {
+      if (!dragging || e.pointerId !== dragging.pointerId) return;
+      const { dragEl, sourceEl, payload, origin } = dragging;
+      const targets = getTargets();
+      const target = findDropTarget(targets, e.clientX, e.clientY, 40);
+      dragEl.classList.remove("dragging");
+      sourceEl.style.visibility = "";
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      dragging = null;
+      onDrop?.(payload, target, dragEl, origin, { sourceEl });
+    }
+    return { start };
+  }
+
+  // src/animate.js
+  function tilePickup(el) {
+    el.classList.add("dragging");
+    sfx.tilePickup();
+  }
+  function tileBounceBack(el, origin, parentInfo) {
+    return new Promise((resolve) => {
+      const stage2 = document.getElementById("stage");
+      const sRect = stage2.getBoundingClientRect();
+      const logicalW = stage2.offsetWidth || 1280;
+      const scale = sRect.width / logicalW;
+      const elRect = el.getBoundingClientRect();
+      const startLocalX = (elRect.left - sRect.left) / scale;
+      const startLocalY = (elRect.top - sRect.top) / scale;
+      const dx = origin.x - startLocalX;
+      const dy = origin.y - startLocalY;
+      const apex = -24;
+      el.style.transition = "none";
+      el.classList.remove("dragging");
+      el.animate(
+        [
+          { transform: `translate(0,0) rotate(0)` },
+          { transform: `translate(${dx / 2}px, ${dy / 2 + apex}px) rotate(-8deg)` },
+          { transform: `translate(${dx}px, ${dy}px) rotate(0)` }
+        ],
+        { duration: 450, easing: "cubic-bezier(0.7,-0.5,0.3,1.5)" }
+      ).onfinish = () => {
+        if (el.classList.contains("drag-clone")) {
+          el.remove();
+          resolve();
+          return;
+        }
+        el.style.position = "";
+        el.style.left = "";
+        el.style.top = "";
+        el.style.transform = "";
+        if (parentInfo?.originalParent) {
+          if (parentInfo.originalNextSibling) {
+            parentInfo.originalParent.insertBefore(el, parentInfo.originalNextSibling);
+          } else {
+            parentInfo.originalParent.appendChild(el);
+          }
+        }
+        resolve();
+      };
+      sfx.tileDropWrong();
+    });
+  }
+  function tileSnapIn(el, targetEl) {
+    return new Promise((resolve) => {
+      const start = el.getBoundingClientRect();
+      const target = targetEl.getBoundingClientRect();
+      const dx = target.left + (target.width - start.width) / 2 - start.left;
+      const dy = target.top + (target.height - start.height) / 2 - start.top;
+      el.classList.remove("dragging");
+      el.animate(
+        [
+          { transform: `translate(0,0) scale(1.08)`, opacity: 1 },
+          { transform: `translate(${dx}px,${dy}px) scale(1)`, opacity: 1, offset: 0.85 },
+          { transform: `translate(${dx}px,${dy}px) scale(1)`, opacity: 0 }
+        ],
+        { duration: 360, easing: "cubic-bezier(0.33, 0, 0.2, 1)", fill: "forwards" }
+      );
+      setTimeout(() => {
+        targetEl.classList.remove("active");
+        targetEl.classList.add("filled");
+        targetEl.textContent = el.textContent;
+        targetEl.classList.add("just-filled");
+        correctBurst(targetEl);
+        const mascot = document.querySelector(".corner-mascot svg");
+        if (mascot) mascotCheer(mascot);
+      }, 280);
+      setTimeout(() => {
+        el.remove();
+        setTimeout(() => targetEl.classList.remove("just-filled"), 400);
+        resolve();
+      }, 380);
+      sfx.correctDing();
+    });
+  }
+  function correctBurst(slotEl) {
+    const stage2 = document.getElementById("stage");
+    if (!stage2) return;
+    const stageRect = stage2.getBoundingClientRect();
+    const slotRect = slotEl.getBoundingClientRect();
+    const logicalW = stage2.offsetWidth || 1280;
+    const scale = stageRect.width / logicalW;
+    const cx = (slotRect.left + slotRect.width / 2 - stageRect.left) / scale;
+    const cy = (slotRect.top + slotRect.height / 2 - stageRect.top) / scale;
+    const colors = ["#FFC83A", "#FFF1A8", "#4AD66D", "#FF7A40"];
+    const N = 14;
+    for (let i = 0; i < N; i++) {
+      const p = document.createElement("div");
+      p.className = "spark-particle";
+      p.style.left = `${cx}px`;
+      p.style.top = `${cy}px`;
+      p.style.background = colors[i % colors.length];
+      stage2.appendChild(p);
+      const angle = Math.PI * 2 * i / N + (Math.random() - 0.5) * 0.4;
+      const dist = 90 + Math.random() * 50;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist - 20;
+      p.animate(
+        [
+          { transform: "translate(-50%, -50%) scale(0.6)", opacity: 1 },
+          { transform: `translate(calc(-50% + ${dx * 0.5}px), calc(-50% + ${dy * 0.5}px)) scale(1.2)`, opacity: 1, offset: 0.4 },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.4)`, opacity: 0 }
+        ],
+        { duration: 700 + Math.random() * 200, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+      ).onfinish = () => p.remove();
+    }
+  }
+  function spawnSparkles(svgRoot, opts = {}) {
+    const parent = svgRoot?.parentElement;
+    if (!parent) return;
+    const cs = getComputedStyle(parent);
+    if (cs.position === "static") parent.style.position = "relative";
+    const {
+      count = 10,
+      angleStart = -Math.PI,
+      angleEnd = 0,
+      distMin = 100,
+      distRange = 50,
+      duration = 900,
+      durationRange = 250,
+      gravity = 40,
+      sizeScale = 1,
+      color = null,
+      delay = 0,
+      delayStagger = 0,
+      spread = 0.18
+    } = opts;
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0.5 : i / (count - 1);
+      const angle = angleStart + (angleEnd - angleStart) * t + (Math.random() - 0.5) * spread;
+      const dist = distMin + Math.random() * distRange;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const rot = (180 + Math.random() * 360) * (i % 2 === 0 ? 1 : -1);
+      const dur = duration + Math.random() * durationRange;
+      const spawn = () => {
+        const s = document.createElement("div");
+        s.className = "mascot-sparkle";
+        if (color) s.style.background = color;
+        if (sizeScale !== 1) {
+          const px = Math.round(28 * sizeScale);
+          s.style.width = `${px}px`;
+          s.style.height = `${px}px`;
+        }
+        s.style.left = "50%";
+        s.style.top = "50%";
+        parent.appendChild(s);
+        s.animate(
+          [
+            { transform: "translate(-50%, -50%) scale(0) rotate(0deg)", opacity: 0 },
+            { transform: `translate(calc(-50% + ${dx * 0.55}px), calc(-50% + ${dy * 0.55}px)) scale(1.4) rotate(${rot * 0.5}deg)`, opacity: 1, offset: 0.35 },
+            { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy + gravity}px)) scale(0.6) rotate(${rot}deg)`, opacity: 0 }
+          ],
+          { duration: dur, easing: "cubic-bezier(0.4,0,0.6,1)", fill: "forwards" }
+        ).onfinish = () => s.remove();
+      };
+      const startDelay = delay + i * delayStagger;
+      if (startDelay > 0) setTimeout(spawn, startDelay);
+      else spawn();
+    }
+  }
+  function flapLefts(svgRoot, frames, duration, easing = "ease-in-out") {
+    svgRoot.querySelectorAll(".wing-l, .arm-l, .ear-l").forEach((el) => {
+      el.style.transformOrigin = "70% 70%";
+      el.animate(frames, { duration, easing });
+    });
+  }
+  function flapRights(svgRoot, frames, duration, easing = "ease-in-out") {
+    svgRoot.querySelectorAll(".wing-r, .arm-r, .ear-r").forEach((el) => {
+      el.style.transformOrigin = "30% 70%";
+      el.animate(frames, { duration, easing });
+    });
+  }
+  function animatePart(svgRoot, selector, frames, duration, options = {}) {
+    const el = svgRoot.querySelector(selector);
+    if (!el) return;
+    if (options.origin) el.style.transformOrigin = options.origin;
+    el.animate(frames, { duration, easing: options.easing || "ease-in-out" });
+  }
+  function cBigJump(svgRoot) {
+    const D = 800;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) scale(1, 1)" },
+        { transform: "translateY(10px) scale(1.15, 0.82)", offset: 0.18 },
+        { transform: "translateY(-50px) scale(0.94, 1.12)", offset: 0.5 },
+        { transform: "translateY(-12px) scale(1.02, 0.98)", offset: 0.72 },
+        { transform: "translateY(0) scale(1.12, 0.88)", offset: 0.88 },
+        { transform: "translateY(0) scale(1, 1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.34, 1.6, 0.5, 1)" }
+    );
+    flapLefts(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(45deg)", offset: 0.3 },
+      { transform: "rotate(-20deg)", offset: 0.6 },
+      { transform: "rotate(35deg)", offset: 0.8 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    flapRights(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-45deg)", offset: 0.3 },
+      { transform: "rotate(20deg)", offset: 0.6 },
+      { transform: "rotate(-35deg)", offset: 0.8 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    animatePart(svgRoot, ".head", [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-10deg)", offset: 0.3 },
+      { transform: "rotate(10deg)", offset: 0.7 },
+      { transform: "rotate(0deg)" }
+    ], D, { origin: "50% 80%" });
+    spawnSparkles(svgRoot, { count: 12, angleStart: -Math.PI, angleEnd: 0, distMin: 110, distRange: 50 });
+  }
+  function cSpin360(svgRoot) {
+    const D = 850;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) rotate(0deg) scale(1)" },
+        { transform: "translateY(-8px) rotate(0deg) scale(1.08, 0.92)", offset: 0.12 },
+        { transform: "translateY(-26px) rotate(180deg) scale(1)", offset: 0.5 },
+        { transform: "translateY(-8px) rotate(360deg) scale(1.08, 0.92)", offset: 0.85 },
+        { transform: "translateY(0) rotate(360deg) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.5, 0, 0.4, 1)" }
+    );
+    spawnSparkles(svgRoot, {
+      count: 14,
+      angleStart: -Math.PI,
+      angleEnd: Math.PI,
+      distMin: 90,
+      distRange: 30,
+      gravity: 20,
+      delayStagger: 35,
+      duration: 800,
+      durationRange: 200
+    });
+  }
+  function cWiggleDance(svgRoot) {
+    const D = 800;
+    svgRoot.animate(
+      [
+        { transform: "translateX(0) rotate(0deg)" },
+        { transform: "translateX(18px) rotate(8deg)", offset: 0.18 },
+        { transform: "translateX(-18px) rotate(-8deg)", offset: 0.4 },
+        { transform: "translateX(18px) rotate(8deg)", offset: 0.62 },
+        { transform: "translateX(-12px) rotate(-6deg)", offset: 0.82 },
+        { transform: "translateX(0) rotate(0deg)" }
+      ],
+      { duration: D, easing: "ease-in-out" }
+    );
+    animatePart(svgRoot, ".tail", [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(35deg)", offset: 0.18 },
+      { transform: "rotate(-35deg)", offset: 0.4 },
+      { transform: "rotate(35deg)", offset: 0.62 },
+      { transform: "rotate(-25deg)", offset: 0.82 },
+      { transform: "rotate(0deg)" }
+    ], D, { origin: "30% 50%" });
+    animatePart(svgRoot, ".head", [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-12deg)", offset: 0.18 },
+      { transform: "rotate(12deg)", offset: 0.4 },
+      { transform: "rotate(-12deg)", offset: 0.62 },
+      { transform: "rotate(8deg)", offset: 0.82 },
+      { transform: "rotate(0deg)" }
+    ], D, { origin: "50% 80%" });
+    spawnSparkles(svgRoot, { count: 5, angleStart: -Math.PI * 0.9, angleEnd: -Math.PI * 0.6, distMin: 100, distRange: 30, delay: 100 });
+    spawnSparkles(svgRoot, { count: 5, angleStart: -Math.PI * 0.4, angleEnd: -Math.PI * 0.1, distMin: 100, distRange: 30, delay: 350 });
+  }
+  function cBackflip(svgRoot) {
+    const D = 900;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) rotate(0deg)" },
+        { transform: "translateY(5px) rotate(0deg) scale(1.1, 0.85)", offset: 0.1 },
+        { transform: "translateY(-55px) rotate(-180deg) scale(1)", offset: 0.5 },
+        { transform: "translateY(0) rotate(-360deg) scale(1.08, 0.92)", offset: 0.88 },
+        { transform: "translateY(0) rotate(-360deg) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.4, 0.3, 0.4, 1)" }
+    );
+    spawnSparkles(svgRoot, {
+      count: 10,
+      angleStart: -Math.PI * 0.9,
+      angleEnd: -Math.PI * 0.1,
+      distMin: 70,
+      distRange: 40,
+      gravity: 60,
+      delayStagger: 50,
+      duration: 700,
+      durationRange: 150
+    });
+  }
+  function cTripleBounce(svgRoot) {
+    const D = 900;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(-15px) scale(1.04, 0.96)", offset: 0.12 },
+        { transform: "translateY(0) scale(1.06, 0.92)", offset: 0.22 },
+        { transform: "translateY(-30px) scale(1.04, 0.96)", offset: 0.38 },
+        { transform: "translateY(0) scale(1.08, 0.9)", offset: 0.5 },
+        { transform: "translateY(-55px) scale(1.02, 1.08)", offset: 0.7 },
+        { transform: "translateY(0) scale(1.15, 0.85)", offset: 0.88 },
+        { transform: "translateY(0) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.5, 0, 0.5, 1)" }
+    );
+    spawnSparkles(svgRoot, { count: 3, angleStart: -Math.PI * 0.8, angleEnd: -Math.PI * 0.2, distMin: 70, distRange: 20, delay: 100, sizeScale: 0.8 });
+    spawnSparkles(svgRoot, { count: 5, angleStart: -Math.PI * 0.85, angleEnd: -Math.PI * 0.15, distMin: 90, distRange: 30, delay: 320, sizeScale: 0.9 });
+    spawnSparkles(svgRoot, { count: 8, angleStart: -Math.PI, angleEnd: 0, distMin: 110, distRange: 40, delay: 600, sizeScale: 1.1 });
+  }
+  function cYesNod(svgRoot) {
+    const D = 750;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0)" },
+        { transform: "translateY(-6px)", offset: 0.2 },
+        { transform: "translateY(0)", offset: 0.35 },
+        { transform: "translateY(-8px)", offset: 0.55 },
+        { transform: "translateY(0)", offset: 0.7 },
+        { transform: "translateY(-6px)", offset: 0.85 },
+        { transform: "translateY(0)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.5, 0.1, 0.5, 1)" }
+    );
+    animatePart(svgRoot, ".head", [
+      { transform: "rotate(0deg) translateY(0)" },
+      { transform: "rotate(-15deg) translateY(-3px)", offset: 0.15 },
+      { transform: "rotate(0deg) translateY(0)", offset: 0.3 },
+      { transform: "rotate(-15deg) translateY(-3px)", offset: 0.5 },
+      { transform: "rotate(0deg) translateY(0)", offset: 0.65 },
+      { transform: "rotate(-15deg) translateY(-3px)", offset: 0.85 },
+      { transform: "rotate(0deg) translateY(0)" }
+    ], D, { origin: "50% 90%" });
+    spawnSparkles(svgRoot, { count: 8, angleStart: -Math.PI, angleEnd: 0, distMin: 90, distRange: 30, sizeScale: 0.85 });
+  }
+  function cFistPump(svgRoot) {
+    const D = 800;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(5px) scale(1.1, 0.85)", offset: 0.12 },
+        { transform: "translateY(-28px) scale(1)", offset: 0.32 },
+        { transform: "translateY(-28px) scale(1)", offset: 0.62 },
+        { transform: "translateY(0) scale(1.1, 0.9)", offset: 0.85 },
+        { transform: "translateY(0) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.4, 0, 0.4, 1)" }
+    );
+    flapLefts(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-60deg)", offset: 0.3 },
+      { transform: "rotate(-55deg)", offset: 0.62 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    flapRights(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(60deg)", offset: 0.3 },
+      { transform: "rotate(55deg)", offset: 0.62 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    spawnSparkles(svgRoot, { count: 6, angleStart: -Math.PI * 0.75, angleEnd: -Math.PI * 0.25, distMin: 100, distRange: 30, delay: 250 });
+    spawnSparkles(svgRoot, { count: 4, angleStart: -Math.PI, angleEnd: -Math.PI * 0.85, distMin: 80, distRange: 30, delay: 350, sizeScale: 0.85 });
+    spawnSparkles(svgRoot, { count: 4, angleStart: -Math.PI * 0.15, angleEnd: 0, distMin: 80, distRange: 30, delay: 350, sizeScale: 0.85 });
+  }
+  function cShimmyTwist(svgRoot) {
+    const D = 850;
+    svgRoot.animate(
+      [
+        { transform: "rotate(0deg) translateY(0)" },
+        { transform: "rotate(25deg) translateY(-6px)", offset: 0.2 },
+        { transform: "rotate(-25deg) translateY(-6px)", offset: 0.4 },
+        { transform: "rotate(25deg) translateY(-6px)", offset: 0.6 },
+        { transform: "rotate(-18deg) translateY(-3px)", offset: 0.8 },
+        { transform: "rotate(0deg) translateY(0)" }
+      ],
+      { duration: D, easing: "ease-in-out" }
+    );
+    flapLefts(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-20deg)", offset: 0.2 },
+      { transform: "rotate(30deg)", offset: 0.4 },
+      { transform: "rotate(-20deg)", offset: 0.6 },
+      { transform: "rotate(15deg)", offset: 0.8 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    flapRights(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(20deg)", offset: 0.2 },
+      { transform: "rotate(-30deg)", offset: 0.4 },
+      { transform: "rotate(20deg)", offset: 0.6 },
+      { transform: "rotate(-15deg)", offset: 0.8 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    spawnSparkles(svgRoot, { count: 4, angleStart: -Math.PI * 0.95, angleEnd: -Math.PI * 0.7, distMin: 100, distRange: 25, delay: 150 });
+    spawnSparkles(svgRoot, { count: 4, angleStart: -Math.PI * 0.3, angleEnd: -Math.PI * 0.05, distMin: 100, distRange: 25, delay: 320 });
+    spawnSparkles(svgRoot, { count: 4, angleStart: -Math.PI * 0.95, angleEnd: -Math.PI * 0.7, distMin: 100, distRange: 25, delay: 500 });
+  }
+  function cStarPose(svgRoot) {
+    const D = 850;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(8px) scale(1.1, 0.82)", offset: 0.15 },
+        { transform: "translateY(-40px) scale(1, 1.08)", offset: 0.4 },
+        { transform: "translateY(-40px) scale(1, 1.08)", offset: 0.7 },
+        { transform: "translateY(0) scale(1.1, 0.9)", offset: 0.9 },
+        { transform: "translateY(0) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.4, 0, 0.4, 1)" }
+    );
+    flapLefts(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(80deg)", offset: 0.4 },
+      { transform: "rotate(75deg)", offset: 0.7 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    flapRights(svgRoot, [
+      { transform: "rotate(0deg)" },
+      { transform: "rotate(-80deg)", offset: 0.4 },
+      { transform: "rotate(-75deg)", offset: 0.7 },
+      { transform: "rotate(0deg)" }
+    ], D);
+    spawnSparkles(svgRoot, {
+      count: 14,
+      angleStart: -Math.PI,
+      angleEnd: Math.PI,
+      distMin: 130,
+      distRange: 30,
+      gravity: 25,
+      delay: 320,
+      duration: 800,
+      sizeScale: 1.1
+    });
+  }
+  function cPogoBounce(svgRoot) {
+    const D = 850;
+    svgRoot.animate(
+      [
+        { transform: "translateY(0) scale(1)" },
+        { transform: "translateY(2px) scale(1.1, 0.85)", offset: 0.08 },
+        { transform: "translateY(-70px) scale(0.85, 1.4)", offset: 0.3 },
+        { transform: "translateY(-40px) scale(1, 1.1)", offset: 0.45 },
+        { transform: "translateY(0) scale(1.3, 0.55)", offset: 0.6 },
+        { transform: "translateY(-15px) scale(1, 1.1)", offset: 0.78 },
+        { transform: "translateY(0) scale(1.06, 0.94)", offset: 0.92 },
+        { transform: "translateY(0) scale(1)" }
+      ],
+      { duration: D, easing: "cubic-bezier(0.5, 0, 0.5, 1)" }
+    );
+    spawnSparkles(svgRoot, {
+      count: 16,
+      angleStart: -Math.PI,
+      angleEnd: 0,
+      distMin: 130,
+      distRange: 50,
+      gravity: 30,
+      delay: 480,
+      duration: 900,
+      sizeScale: 1.15
+    });
+    spawnSparkles(svgRoot, {
+      count: 5,
+      angleStart: -Math.PI * 0.7,
+      angleEnd: -Math.PI * 0.3,
+      distMin: 70,
+      distRange: 20,
+      gravity: 60,
+      delay: 80,
+      duration: 600,
+      sizeScale: 0.7
+    });
+  }
+  var CELEBRATIONS = [
+    cBigJump,
+    cSpin360,
+    cWiggleDance,
+    cBackflip,
+    cTripleBounce,
+    cYesNod,
+    cFistPump,
+    cShimmyTwist,
+    cStarPose,
+    cPogoBounce
+  ];
+  var lastCelebrationIdx = -1;
+  function mascotCheer(svgRoot) {
+    if (!svgRoot || CELEBRATIONS.length === 0) return;
+    let i;
+    if (CELEBRATIONS.length === 1) {
+      i = 0;
+    } else {
+      do {
+        i = Math.floor(Math.random() * CELEBRATIONS.length);
+      } while (i === lastCelebrationIdx);
+    }
+    lastCelebrationIdx = i;
+    CELEBRATIONS[i](svgRoot);
+  }
+  function flyCarry(carrySlotEl, fromEl) {
+    return new Promise((resolve) => {
+      const chip = document.createElement("div");
+      chip.className = "carry-chip";
+      chip.textContent = "1";
+      document.body.appendChild(chip);
+      const start = fromEl.getBoundingClientRect();
+      const end = carrySlotEl.getBoundingClientRect();
+      const startX = start.left + start.width / 2;
+      const startY = start.top + start.height / 2;
+      const endX = end.left + end.width / 2;
+      const endY = end.top + end.height / 2;
+      const apexX = (startX + endX) / 2;
+      const apexY = Math.min(startY, endY) - 80;
+      chip.style.left = `${startX - 30}px`;
+      chip.style.top = `${startY - 30}px`;
+      chip.style.transform = "scale(0)";
+      sfx.carryWhoosh();
+      requestAnimationFrame(() => {
+        chip.animate(
+          [{ transform: "scale(0)" }, { transform: "scale(1)" }],
+          { duration: 200, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+        );
+        setTimeout(() => {
+          chip.animate(
+            [
+              { left: `${startX - 30}px`, top: `${startY - 30}px`, transform: "scale(1) rotate(0)" },
+              { left: `${apexX - 30}px`, top: `${apexY - 30}px`, transform: "scale(1.05) rotate(6deg)", offset: 0.5 },
+              { left: `${endX - 30}px`, top: `${endY - 30}px`, transform: "scale(1) rotate(0)" }
+            ],
+            { duration: 500, easing: "cubic-bezier(0.4,0,0.6,1)", fill: "forwards" }
+          ).onfinish = () => {
+            chip.animate(
+              [{ transform: "scale(1.1)" }, { transform: "scale(1)" }],
+              { duration: 200, easing: "cubic-bezier(0.25,0.9,0.3,1.4)", fill: "forwards" }
+            );
+            carrySlotEl.textContent = "1";
+            carrySlotEl.classList.add("filled");
+            setTimeout(() => {
+              chip.remove();
+              resolve();
+            }, 220);
+          };
+        }, 200);
+      });
+    });
+  }
+  function animateBorrow({ tensTopEl, onesTopEl, newTensDigit, newOnesValue }) {
+    return new Promise((resolve) => {
+      sfx.borrowWhoosh();
+      const PHASE_A_MS = 1800;
+      const SMOOTH = "cubic-bezier(0.45, 0.05, 0.25, 1)";
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const strike = document.createElement("div");
+      strike.className = "strike";
+      const svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", "0 0 100 120");
+      svg.setAttribute("preserveAspectRatio", "none");
+      const line = document.createElementNS(SVG_NS, "line");
+      line.setAttribute("x1", "14");
+      line.setAttribute("y1", "100");
+      line.setAttribute("x2", "86");
+      line.setAttribute("y2", "20");
+      line.setAttribute("stroke", "#FF7A40");
+      line.setAttribute("stroke-width", "7");
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+      strike.appendChild(svg);
+      tensTopEl.appendChild(strike);
+      const newTens = document.createElement("div");
+      newTens.className = "borrow-replacement";
+      newTens.textContent = String(newTensDigit);
+      tensTopEl.parentElement.appendChild(newTens);
+      newTens.style.left = `${tensTopEl.offsetLeft - 20}px`;
+      newTens.style.top = `${tensTopEl.offsetTop - 25}px`;
+      newTens.animate(
+        [
+          { opacity: 0, transform: "scale(0.4)" },
+          { opacity: 1, transform: "scale(1)" }
+        ],
+        { duration: PHASE_A_MS, easing: SMOOTH, fill: "forwards" }
+      );
+      setTimeout(() => {
+        const chip = document.createElement("div");
+        chip.className = "borrow-chip";
+        chip.textContent = "10";
+        document.body.appendChild(chip);
+        const tens = tensTopEl.getBoundingClientRect();
+        const ones = onesTopEl.getBoundingClientRect();
+        const sx = tens.left + tens.width / 2;
+        const sy = tens.top + tens.height / 2;
+        const ex = ones.left + ones.width / 2;
+        const ey = ones.top - 56;
+        chip.style.left = `${sx - 30}px`;
+        chip.style.top = `${sy - 30}px`;
+        chip.animate(
+          [
+            { left: `${sx - 30}px`, top: `${sy - 30}px`, transform: "scale(0.7)", opacity: 0 },
+            { left: `${sx - 30}px`, top: `${sy - 30}px`, transform: "scale(1)", opacity: 1, offset: 0.18 },
+            { left: `${(sx + ex) / 2 - 30}px`, top: `${(sy + ey) / 2 - 30}px`, transform: "scale(1.1)", opacity: 1, offset: 0.6 },
+            { left: `${ex - 30}px`, top: `${ey - 30}px`, transform: "scale(1)", opacity: 1 }
+          ],
+          { duration: 1700, easing: SMOOTH, fill: "forwards" }
+        ).onfinish = () => {
+          const plus = document.createElement("div");
+          plus.className = "borrow-plus";
+          plus.textContent = "+";
+          document.body.appendChild(plus);
+          plus.style.left = `${ex - 18}px`;
+          plus.style.top = `${ones.top - 18}px`;
+          plus.animate(
+            [
+              { opacity: 0, transform: "scale(0.4)" },
+              { opacity: 1, transform: "scale(1)" }
+            ],
+            { duration: 500, easing: SMOOTH, fill: "forwards" }
+          );
+          setTimeout(() => {
+            plus.animate(
+              [
+                { opacity: 1, transform: "scale(1)" },
+                { opacity: 0, transform: "scale(0.5)" }
+              ],
+              { duration: 500, easing: SMOOTH, fill: "forwards" }
+            ).onfinish = () => plus.remove();
+            chip.animate(
+              [
+                { left: `${ex - 30}px`, top: `${ey - 30}px`, transform: "scale(1)", opacity: 1 },
+                { left: `${ex - 30}px`, top: `${ey - 30}px`, transform: "scale(0.7)", opacity: 0 }
+              ],
+              { duration: 600, easing: SMOOTH, fill: "forwards" }
+            ).onfinish = () => chip.remove();
+            const carryDigit = Math.floor(newOnesValue / 10);
+            const carry = document.createElement("div");
+            carry.className = "borrow-replacement borrow-carry";
+            carry.textContent = String(carryDigit);
+            onesTopEl.parentElement.appendChild(carry);
+            carry.style.left = `${onesTopEl.offsetLeft - 20}px`;
+            carry.style.top = `${onesTopEl.offsetTop - 25}px`;
+            carry.animate(
+              [
+                { opacity: 0, transform: "scale(0.4)" },
+                { opacity: 1, transform: "scale(1)" }
+              ],
+              { duration: 700, easing: SMOOTH, fill: "forwards" }
+            ).onfinish = () => {
+              setTimeout(resolve, 500);
+            };
+          }, 1500);
+        };
+      }, 2300);
+    });
+  }
+  function tapBlock(blockEl, count) {
+    blockEl.classList.remove("untapped");
+    blockEl.classList.add("tapped");
+    let badge = blockEl.querySelector(".count-badge");
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.className = "count-badge";
+      blockEl.appendChild(badge);
+    }
+    badge.textContent = String(count);
+    requestAnimationFrame(() => badge.classList.add("show"));
+    sfx.blockTap(count);
+  }
+  function blockFlyIn(blocks) {
+    blocks.forEach((el, i) => {
+      el.style.opacity = "0";
+      el.style.transform = `translate(${(Math.random() - 0.5) * 120}px, -200px) rotate(${(Math.random() - 0.5) * 40}deg)`;
+      setTimeout(() => {
+        el.animate(
+          [
+            { opacity: 0, transform: el.style.transform },
+            { opacity: 1, transform: "translate(0,0) rotate(0)" }
+          ],
+          { duration: 600, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+        ).onfinish = () => {
+          el.classList.add("idle-wobble");
+          el.style.opacity = "";
+          el.style.transform = "";
+        };
+      }, i * 40);
+    });
+  }
+  function revealStars(starEls, earnedCount) {
+    const delays = [400, 1100, 1900];
+    const overshoots = [1.3, 1.5, 1.7];
+    return new Promise((resolve) => {
+      starEls.forEach((el, i) => {
+        if (i >= earnedCount) {
+          el.classList.add("empty");
+          return;
+        }
+        setTimeout(() => {
+          el.classList.remove("empty");
+          el.classList.add("earned");
+          sfx.starDing(i + 1);
+          el.animate(
+            [
+              { transform: "translateY(-80px) scale(0)", opacity: 0 },
+              { transform: `translateY(0) scale(${overshoots[i]})`, opacity: 1, offset: 0.6 },
+              { transform: "translateY(0) scale(1)", opacity: 1 }
+            ],
+            { duration: 500 + i * 100, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+          );
+          if (i === earnedCount - 1) {
+            setTimeout(resolve, 500 + i * 100 + 200);
+          }
+        }, delays[i]);
+      });
+      if (earnedCount === 0) setTimeout(resolve, 600);
+    });
+  }
+  function mascotIdle(svgRoot) {
+    svgRoot.classList.add("idle");
+    svgRoot.classList.remove("celebrate");
+  }
+  function mascotCelebrate(svgRoot) {
+    svgRoot.classList.remove("idle");
+    svgRoot.classList.add("celebrate");
+    setTimeout(() => mascotIdle(svgRoot), 2400);
+  }
+  var CONFETTI_COLORS = ["#FFC83A", "#FF7A40", "#4AAE3F", "#3DC5C5", "#E03E3E", "#FFB933"];
+  var CONFETTI_KINDS = ["rect", "tear", "circle", "zig"];
+  function burstConfetti(container, count = 80) {
+    for (let i = 0; i < count; i++) {
+      const wrap = document.createElement("div");
+      wrap.className = "confetti-particle";
+      const kind = CONFETTI_KINDS[i % 4];
+      const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      wrap.insertAdjacentHTML("beforeend", confettiShape(kind, color));
+      const startX = container.clientWidth / 2 + (Math.random() - 0.5) * 200;
+      const endX = startX + (Math.random() - 0.5) * 800;
+      const endY = container.clientHeight + 100;
+      wrap.style.left = `${startX}px`;
+      wrap.style.top = "0px";
+      wrap.style.transform = `rotate(${Math.random() * 360}deg)`;
+      container.appendChild(wrap);
+      wrap.animate(
+        [
+          { transform: `translate(0,0) rotate(0deg)` },
+          { transform: `translate(${endX - startX}px, ${endY}px) rotate(${720 + Math.random() * 720}deg)` }
+        ],
+        { duration: 2500 + Math.random() * 500, easing: "cubic-bezier(0.4,0,0.6,1)", fill: "forwards" }
+      ).onfinish = () => wrap.remove();
+    }
+  }
+
+  // src/layout.js
+  var TRAY_BOTTOM = 16;
+  var BOX_GAP = 20;
+  var BAND_PAD = 14;
+  var MAX_W = 112;
+  var MIN_W = 84;
+  var RATIO = 0.87;
+  function isPortrait(stage2) {
+    return stage2.dataset.orient === "portrait";
+  }
+  function stageScale(stage2) {
+    const r = stage2.getBoundingClientRect();
+    return r.width / (stage2.offsetWidth || 720);
+  }
+  function logicalRect(stage2, el) {
+    const s = stageScale(stage2) || 1;
+    const sr = stage2.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return {
+      top: (r.top - sr.top) / s,
+      bottom: (r.bottom - sr.top) / s,
+      height: r.height / s
+    };
+  }
+  function maxTrayHeight(H) {
+    return Math.min(H * 0.42, 420);
+  }
+  function setTileSizes(tiles, w) {
+    const h = Math.round(w * RATIO);
+    for (const t of tiles) {
+      t.style.width = `${w}px`;
+      t.style.height = `${h}px`;
+      const compound = t.classList.contains("compound");
+      t.style.fontSize = `${Math.round(w * (compound ? 0.43 : 0.5))}px`;
+    }
+  }
+  function clearTileSizes(tiles) {
+    for (const t of tiles) {
+      t.style.width = "";
+      t.style.height = "";
+      t.style.fontSize = "";
+    }
+  }
+  function fitTray(stage2, tray, maxH) {
+    const tiles = tray.querySelectorAll(".tile");
+    if (!tiles.length) return 0;
+    tray.style.height = "auto";
+    let w = MAX_W;
+    for (; w > MIN_W; w -= 2) {
+      setTileSizes(tiles, w);
+      if (tray.offsetHeight <= maxH) break;
+    }
+    setTileSizes(tiles, w);
+    const h = tray.offsetHeight;
+    tray.style.height = `${h}px`;
+    return h;
+  }
+  function centerPlay(stage2, el, bandTop, bandBottom, scaleToFit) {
+    if (!el) return;
+    el.style.position = "absolute";
+    el.style.left = "50%";
+    el.style.transform = "none";
+    el.style.top = "";
+    const natH = el.offsetHeight;
+    const bandH = Math.max(0, bandBottom - bandTop);
+    let s = 1;
+    if (scaleToFit && natH > bandH && natH > 0) s = bandH / natH;
+    const center = (bandTop + bandBottom) / 2;
+    el.style.top = `${center}px`;
+    el.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
+  function clearInline(el, props) {
+    if (!el) return;
+    for (const p of props) el.style[p] = "";
+  }
+  function headerBottom(stage2, sec) {
+    const problem = sec.querySelector(".mult-problem");
+    const mascot = sec.querySelector(".corner-mascot");
+    return Math.max(
+      problem ? logicalRect(stage2, problem).bottom : 0,
+      mascot ? logicalRect(stage2, mascot).bottom : 0
+    );
+  }
+  function layoutAddSub(stage2, sec) {
+    if (!sec || !sec.isConnected) return;
+    const tray = sec.querySelector(".digit-tray");
+    const ws = sec.querySelector(".worksheet");
+    if (!isPortrait(stage2)) {
+      if (tray) {
+        clearTileSizes(tray.querySelectorAll(".tile"));
+        tray.style.height = "";
+      }
+      clearInline(ws, ["position", "left", "top", "transform"]);
+      return;
+    }
+    const H = stage2.offsetHeight;
+    if (H < 400 || !tray || !ws) return;
+    const trayH = fitTray(stage2, tray, maxTrayHeight(H));
+    const bandTop = logicalRect(stage2, sec.querySelector(".topbar")).bottom + BAND_PAD;
+    const bandBottom = H - TRAY_BOTTOM - trayH - BAND_PAD;
+    centerPlay(stage2, ws, bandTop, bandBottom, false);
+  }
+  function layoutMultTap(stage2, sec) {
+    if (!sec || !sec.isConnected) return;
+    const tray = sec.querySelector(".digit-tray");
+    const reveal = sec.querySelector(".total-reveal");
+    const firefly2 = sec.querySelector(".firefly-area");
+    if (!isPortrait(stage2)) {
+      if (tray) {
+        clearTileSizes(tray.querySelectorAll(".tile"));
+        tray.style.height = "";
+      }
+      clearInline(reveal, ["bottom", "top"]);
+      clearInline(firefly2, ["position", "left", "top", "transform"]);
+      return;
+    }
+    const H = stage2.offsetHeight;
+    if (H < 400 || !tray) return;
+    const trayH = fitTray(stage2, tray, maxTrayHeight(H));
+    if (reveal && !reveal.classList.contains("hidden")) {
+      reveal.style.top = "auto";
+      reveal.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
+    }
+    const bandTop = headerBottom(stage2, sec) + BAND_PAD;
+    const boxTop = reveal ? logicalRect(stage2, reveal).top : H - TRAY_BOTTOM - trayH;
+    centerPlay(stage2, firefly2, bandTop, boxTop - BAND_PAD, true);
+  }
+  function layoutMultDrag(stage2, sec) {
+    if (!sec || !sec.isConnected) return;
+    const tray = sec.querySelector(".digit-tray");
+    const ansHost = sec.querySelector(".ans-host");
+    const playCol = sec.querySelector(".play-col");
+    if (!isPortrait(stage2)) {
+      if (tray) {
+        clearTileSizes(tray.querySelectorAll(".tile"));
+        tray.style.height = "";
+      }
+      clearInline(ansHost, ["bottom", "top"]);
+      clearInline(playCol, ["position", "left", "top", "transform"]);
+      return;
+    }
+    const H = stage2.offsetHeight;
+    if (H < 400 || !tray) return;
+    const trayHidden = tray.classList.contains("hidden");
+    const trayH = trayHidden ? 0 : fitTray(stage2, tray, maxTrayHeight(H));
+    let boxTop = H - TRAY_BOTTOM - trayH;
+    if (ansHost && !ansHost.classList.contains("hidden")) {
+      ansHost.style.top = "auto";
+      ansHost.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
+      boxTop = logicalRect(stage2, ansHost).top;
+    }
+    const bandTop = headerBottom(stage2, sec) + BAND_PAD;
+    centerPlay(stage2, playCol, bandTop, boxTop - BAND_PAD, true);
+  }
+
+  // src/screens/add.js
+  function mount3(stage2, ctx2, router2) {
+    const { world, level } = ctx2;
+    stage2.dataset.world = world;
+    const problems = getProblems(world, level);
+    let idx = 0;
+    let totalWrong = 0;
+    let activeState = null;
+    let dragMgr = null;
+    let trayWrongOnCurrentSlot = 0;
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-add";
+    sec.innerHTML = `
+    <div class="topbar">
+      <button class="home-btn small"></button>
+      <div class="progress-dots"></div>
+      <div class="star-meter run"></div>
+    </div>
+    <div class="worksheet"></div>
+    <div class="digit-tray"></div>
+    <div class="corner-mascot"></div>
+  `;
+    sec.querySelector(".home-btn").insertAdjacentHTML("beforeend", home());
+    sec.querySelector(".home-btn").addEventListener("pointerup", () => router2.go("map"));
+    sec.querySelector(".corner-mascot").insertAdjacentHTML("beforeend", banji("idle"));
+    const relayout = () => layoutAddSub(stage2, sec);
+    renderProgressDots();
+    renderTray();
+    renderProblem();
+    setupDrag();
+    function renderProgressDots() {
+      const d = sec.querySelector(".progress-dots");
+      d.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i < idx ? " filled" : i === idx ? " current" : "");
+        d.appendChild(dot);
+      }
+    }
+    function renderTray() {
+      const tray = sec.querySelector(".digit-tray");
+      tray.innerHTML = "";
+      const a = analyze(problems[idx]);
+      const useCompound = a.carry;
+      tray.classList.toggle("two-row", useCompound);
+      sec.classList.toggle("two-row-active", useCompound);
+      if (useCompound) {
+        const row1 = document.createElement("div");
+        row1.className = "tile-row";
+        for (let n = 0; n <= 9; n++) {
+          const t = document.createElement("div");
+          t.className = "tile";
+          t.dataset.digit = String(n);
+          t.textContent = String(n);
+          row1.appendChild(t);
+        }
+        tray.appendChild(row1);
+        const row2 = document.createElement("div");
+        row2.className = "tile-row";
+        for (let n = 10; n <= 18; n++) {
+          const t = document.createElement("div");
+          t.className = "tile compound";
+          t.dataset.compound = String(n);
+          t.textContent = String(n);
+          row2.appendChild(t);
+        }
+        tray.appendChild(row2);
+      } else {
+        for (let n = 0; n <= 9; n++) {
+          const t = document.createElement("div");
+          t.className = "tile";
+          t.dataset.digit = String(n);
+          t.textContent = String(n);
+          tray.appendChild(t);
+        }
+      }
+      relayout();
+    }
+    function renderProblem() {
+      trayWrongOnCurrentSlot = 0;
+      const p = problems[idx];
+      const a = analyze(p);
+      activeState = createAnswerState(p.answer);
+      const ws = sec.querySelector(".worksheet");
+      ws.innerHTML = `
+      <div class="carry-slot ${a.carry ? "" : "hidden"}"></div>
+      <div class="row top">
+        <div class="cell ${a.aTens === 0 ? "empty" : ""}">${a.aTens || ""}</div>
+        <div class="cell">${a.aOnes}</div>
+      </div>
+      <div class="row bot">
+        <div class="op">${p.op}</div>
+        <div class="cell ${a.bTens === 0 ? "empty" : ""}">${a.bTens || ""}</div>
+        <div class="cell">${a.bOnes}</div>
+      </div>
+      <div class="line"></div>
+      <div class="row ans">
+        ${activeState.slots.length === 2 ? '<div class="slot inactive" data-index="0"></div>' : ""}
+        <div class="slot active" data-index="${activeState.slots.length - 1}"></div>
+      </div>
+    `;
+      sec.dataset.problem = `${p.a}${p.op}${p.b}`;
+      if (a.carry) {
+        requestAnimationFrame(() => {
+          const tensCell = ws.querySelector(".row.top .cell:nth-child(1)");
+          const carrySlot = ws.querySelector(".carry-slot");
+          if (tensCell && carrySlot) {
+            const stageEl = document.getElementById("stage");
+            const stageRect = stageEl.getBoundingClientRect();
+            const stageLogicalW = stageEl.offsetWidth || (stageEl.dataset.orient === "portrait" ? 720 : 1280);
+            const scale = stageRect.width / stageLogicalW;
+            const tensRect = tensCell.getBoundingClientRect();
+            const wsRect = ws.getBoundingClientRect();
+            const tensLeftLocal = (tensRect.left - wsRect.left) / scale;
+            const tensWidthLocal = tensRect.width / scale;
+            const tensCenter = tensLeftLocal + tensWidthLocal / 2;
+            carrySlot.style.left = `${tensCenter - 30}px`;
+            carrySlot.style.top = "-72px";
+            carrySlot.style.right = "auto";
+          }
+        });
+      }
+      syncTrayDim();
+      relayout();
+    }
+    function syncTrayDim() {
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        tile.classList.remove("dim", "hint-dim", "hint-target");
+      });
+      if (activeState.slots.length === 2 && activeState.activeIndex === 0) {
+        const expected = activeState.expected[activeState.activeIndex];
+        sec.querySelectorAll(".tile:not(.compound)").forEach((tile) => {
+          if (parseInt(tile.dataset.digit, 10) !== expected) tile.classList.add("dim");
+        });
+        sec.querySelectorAll(".tile.compound").forEach((tile) => {
+          tile.classList.add("dim");
+        });
+      }
+    }
+    function setupDrag() {
+      dragMgr = createDragManager({
+        getTargets() {
+          return Array.from(sec.querySelectorAll(".slot")).map((el) => ({
+            el,
+            rect: el.getBoundingClientRect(),
+            active: el.classList.contains("active"),
+            id: el.dataset.index
+          }));
+        },
+        onPickup(payload, el) {
+          tilePickup(el);
+        },
+        async onDrop(payload, target, sourceEl, origin, parentInfo) {
+          if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
+          const targetIndex = parseInt(target.id, 10);
+          const a = analyze(problems[idx]);
+          if (payload.kind === "compound") {
+            if (!a.carry || targetIndex !== activeState.slots.length - 1) {
+              totalWrong++;
+              trayWrongOnCurrentSlot++;
+              await tileBounceBack(sourceEl, origin, parentInfo);
+              target.el.classList.add("flash-no");
+              setTimeout(() => target.el.classList.remove("flash-no"), 200);
+              if (trayWrongOnCurrentSlot >= 2) applyHint();
+              return;
+            }
+            const expectedSum = a.aOnes + a.bOnes;
+            const next2 = dropCompound(activeState, payload.value, expectedSum);
+            if (!next2.lastDropCorrect) {
+              totalWrong++;
+              activeState = next2;
+              trayWrongOnCurrentSlot++;
+              await tileBounceBack(sourceEl, origin, parentInfo);
+              target.el.classList.add("flash-no");
+              setTimeout(() => target.el.classList.remove("flash-no"), 200);
+              if (trayWrongOnCurrentSlot >= 2) applyHint();
+              return;
+            }
+            activeState = next2;
+            sourceEl.textContent = String(payload.value % 10);
+            await tileSnapIn(sourceEl, target.el);
+            const carrySlot = sec.querySelector(".carry-slot");
+            if (carrySlot) {
+              carrySlot.classList.remove("hidden");
+              await flyCarry(carrySlot, target.el);
+            }
+            sec.querySelectorAll(".slot").forEach((el) => {
+              const i = parseInt(el.dataset.index, 10);
+              el.classList.remove("active", "inactive");
+              if (i === activeState.activeIndex) el.classList.add("active");
+              else if (!el.classList.contains("filled")) el.classList.add("inactive");
+            });
+            trayWrongOnCurrentSlot = 0;
+            syncTrayDim();
+            renderTray();
+            setupDrag();
+            attachTileListeners();
+            return;
+          }
+          if (a.carry && targetIndex === activeState.slots.length - 1) {
+            totalWrong++;
+            trayWrongOnCurrentSlot++;
+            await tileBounceBack(sourceEl, origin, parentInfo);
+            target.el.classList.add("flash-no");
+            setTimeout(() => target.el.classList.remove("flash-no"), 200);
+            if (trayWrongOnCurrentSlot >= 2) applyHint();
+            return;
+          }
+          const next = dropDigit(activeState, payload.digit, targetIndex);
+          if (!next.lastDropCorrect) {
+            totalWrong++;
+            activeState = next;
+            trayWrongOnCurrentSlot++;
+            await tileBounceBack(sourceEl, origin, parentInfo);
+            target.el.classList.add("flash-no");
+            setTimeout(() => target.el.classList.remove("flash-no"), 200);
+            if (trayWrongOnCurrentSlot >= 2) applyHint();
+            return;
+          }
+          activeState = next;
+          await tileSnapIn(sourceEl, target.el);
+          if (!isComplete(activeState)) {
+            sec.querySelectorAll(".slot").forEach((el) => {
+              const i = parseInt(el.dataset.index, 10);
+              el.classList.remove("active", "inactive");
+              if (i === activeState.activeIndex) el.classList.add("active");
+              else if (!el.classList.contains("filled")) el.classList.add("inactive");
+            });
+            trayWrongOnCurrentSlot = 0;
+            syncTrayDim();
+            renderTray();
+            setupDrag();
+            attachTileListeners();
+          } else {
+            sfx.correctYay();
+            await advanceProblem();
+          }
+        }
+      });
+      attachTileListeners();
+    }
+    function attachTileListeners() {
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        tile.onpointerdown = (e) => {
+          if (tile.dataset.compound) {
+            const value = parseInt(tile.dataset.compound, 10);
+            dragMgr.start(e, tile, { kind: "compound", value });
+          } else {
+            const digit = parseInt(tile.dataset.digit, 10);
+            dragMgr.start(e, tile, { kind: "digit", digit });
+          }
+        };
+      });
+    }
+    function applyHint() {
+      const a = analyze(problems[idx]);
+      const isOnesSlot = activeState.slots.length === 2 && activeState.activeIndex === 1;
+      if (a.carry && isOnesSlot) {
+        const expectedSum = a.aOnes + a.bOnes;
+        sec.querySelectorAll(".tile").forEach((tile) => {
+          if (tile.dataset.compound && parseInt(tile.dataset.compound, 10) === expectedSum) {
+            tile.classList.remove("dim");
+            tile.classList.add("hint-target");
+          } else {
+            tile.classList.add("hint-dim");
+          }
+        });
+      } else {
+        const expected = activeState.expected[activeState.activeIndex];
+        sec.querySelectorAll(".tile:not(.compound)").forEach((tile) => {
+          if (parseInt(tile.dataset.digit, 10) === expected) {
+            tile.classList.remove("dim");
+            tile.classList.add("hint-target");
+          } else {
+            tile.classList.add("hint-dim");
+          }
+        });
+      }
+      sfx.hintHmm();
+    }
+    async function advanceProblem() {
+      idx++;
+      renderProgressDots();
+      if (idx >= problems.length) {
+        router2.go("complete", { world, level, wrongCount: totalWrong });
+        return;
+      }
+      sfx.transition();
+      setTimeout(() => {
+        renderProblem();
+        renderTray();
+        setupDrag();
+        attachTileListeners();
+      }, 500);
+    }
+    stage2.appendChild(sec);
+    window.__activeRelayout = relayout;
+    relayout();
+    return () => {
+      if (window.__activeRelayout === relayout) window.__activeRelayout = null;
+      sec.remove();
+    };
+  }
+
+  // src/screens/sub.js
+  function mount4(stage2, ctx2, router2) {
+    const { world, level } = ctx2;
+    stage2.dataset.world = world;
+    const problems = getProblems(world, level);
+    let idx = 0;
+    let totalWrong = 0;
+    let activeState = null;
+    let dragMgr = null;
+    let trayWrongOnCurrentSlot = 0;
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-sub";
+    sec.innerHTML = `
+    <div class="topbar">
+      <button class="home-btn small"></button>
+      <div class="progress-dots"></div>
+      <div class="star-meter run"></div>
+    </div>
+    <div class="worksheet"></div>
+    <div class="digit-tray"></div>
+    <div class="corner-mascot"></div>
+  `;
+    sec.querySelector(".home-btn").insertAdjacentHTML("beforeend", home());
+    sec.querySelector(".home-btn").addEventListener("pointerup", () => router2.go("map"));
+    sec.querySelector(".corner-mascot").insertAdjacentHTML("beforeend", mo("idle"));
+    const relayout = () => layoutAddSub(stage2, sec);
+    renderProgressDots();
+    renderTray();
+    stage2.appendChild(sec);
+    window.__activeRelayout = relayout;
+    renderProblem().then(() => {
+      setupDrag();
+      relayout();
+    });
+    function renderProgressDots() {
+      const d = sec.querySelector(".progress-dots");
+      d.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i < idx ? " filled" : i === idx ? " current" : "");
+        d.appendChild(dot);
+      }
+    }
+    function renderTray() {
+      const tray = sec.querySelector(".digit-tray");
+      tray.innerHTML = "";
+      for (let n = 0; n <= 9; n++) {
+        const t = document.createElement("div");
+        t.className = "tile";
+        t.dataset.digit = String(n);
+        t.textContent = String(n);
+        tray.appendChild(t);
+      }
+      relayout();
+    }
+    async function renderProblem() {
+      trayWrongOnCurrentSlot = 0;
+      const p = problems[idx];
+      const a = analyze(p);
+      activeState = createAnswerState(p.answer);
+      const ws = sec.querySelector(".worksheet");
+      ws.innerHTML = `
+      <div class="row top">
+        <div class="cell ${a.aTens === 0 ? "empty" : ""}">${a.aTens || ""}</div>
+        <div class="cell">${a.aOnes}</div>
+      </div>
+      <div class="row bot">
+        <div class="op">${p.op}</div>
+        <div class="cell ${a.bTens === 0 ? "empty" : ""}">${a.bTens || ""}</div>
+        <div class="cell">${a.bOnes}</div>
+      </div>
+      <div class="line"></div>
+      <div class="row ans">
+        ${activeState.slots.length === 2 ? '<div class="slot inactive" data-index="0"></div>' : ""}
+        <div class="slot active" data-index="${activeState.slots.length - 1}"></div>
+      </div>
+    `;
+      sec.dataset.problem = `${p.a}${p.op}${p.b}`;
+      if (a.borrow) {
+        const tensTopEl = ws.querySelector(".row.top .cell:nth-child(1)");
+        const onesTopEl = ws.querySelector(".row.top .cell:nth-child(2)");
+        await animateBorrow({
+          tensTopEl,
+          onesTopEl,
+          newTensDigit: a.borrowFromTens,
+          newOnesValue: a.borrowedOnes
+        });
+      }
+      syncTrayDim();
+      relayout();
+    }
+    function syncTrayDim() {
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        tile.classList.remove("dim", "hint-dim", "hint-target");
+      });
+      if (activeState.slots.length === 2 && activeState.activeIndex === 0) {
+        const expected = activeState.expected[activeState.activeIndex];
+        sec.querySelectorAll(".tile").forEach((tile) => {
+          if (parseInt(tile.dataset.digit, 10) !== expected) tile.classList.add("dim");
+        });
+      }
+    }
+    function setupDrag() {
+      dragMgr = createDragManager({
+        getTargets() {
+          return Array.from(sec.querySelectorAll(".slot")).map((el) => ({
+            el,
+            rect: el.getBoundingClientRect(),
+            active: el.classList.contains("active"),
+            id: el.dataset.index
+          }));
+        },
+        onPickup(payload, el) {
+          tilePickup(el);
+        },
+        async onDrop(payload, target, sourceEl, origin, parentInfo) {
+          if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
+          const targetIndex = parseInt(target.id, 10);
+          const next = dropDigit(activeState, payload.digit, targetIndex);
+          if (!next.lastDropCorrect) {
+            totalWrong++;
+            activeState = next;
+            trayWrongOnCurrentSlot++;
+            await tileBounceBack(sourceEl, origin, parentInfo);
+            target.el.classList.add("flash-no");
+            setTimeout(() => target.el.classList.remove("flash-no"), 200);
+            if (trayWrongOnCurrentSlot >= 2) applyHint();
+            return;
+          }
+          activeState = next;
+          await tileSnapIn(sourceEl, target.el);
+          if (!isComplete(activeState)) {
+            sec.querySelectorAll(".slot").forEach((el) => {
+              const i = parseInt(el.dataset.index, 10);
+              el.classList.remove("active", "inactive");
+              if (i === activeState.activeIndex) el.classList.add("active");
+              else if (el.classList.contains("filled")) {
+              } else el.classList.add("inactive");
+            });
+            trayWrongOnCurrentSlot = 0;
+            syncTrayDim();
+            renderTray();
+            setupDrag();
+            attachTileListeners();
+          } else {
+            sfx.correctYay();
+            await advanceProblem();
+          }
+        }
+      });
+      attachTileListeners();
+    }
+    function attachTileListeners() {
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        tile.onpointerdown = (e) => {
+          const digit = parseInt(tile.dataset.digit, 10);
+          dragMgr.start(e, tile, { digit });
+        };
+      });
+    }
+    function applyHint() {
+      const expected = activeState.expected[activeState.activeIndex];
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        if (parseInt(tile.dataset.digit, 10) === expected) {
+          tile.classList.remove("dim");
+          tile.classList.add("hint-target");
+        } else {
+          tile.classList.add("hint-dim");
+        }
+      });
+      sfx.hintHmm();
+    }
+    async function advanceProblem() {
+      idx++;
+      renderProgressDots();
+      if (idx >= problems.length) {
+        router2.go("complete", { world, level, wrongCount: totalWrong });
+        return;
+      }
+      sfx.transition();
+      setTimeout(() => {
+        renderProblem().then(() => {
+          renderTray();
+          setupDrag();
+          attachTileListeners();
+        });
+      }, 500);
+    }
+    return () => {
+      if (window.__activeRelayout === relayout) window.__activeRelayout = null;
+      sec.remove();
+    };
+  }
+
+  // src/screens/mult-tap.js
+  function compoundOptions(correct) {
+    const max = Math.max(20, correct);
+    const tiles = [];
+    for (let n = 10; n <= max; n++) tiles.push(n);
+    return tiles;
+  }
+  function mount5(stage2, ctx2, router2) {
+    const { world, level } = ctx2;
+    stage2.dataset.world = "mult";
+    const problems = getProblems(world, level);
+    let idx = 0;
+    let totalWrong = 0;
+    let dragMgr = null;
+    let globalCount = 0;
+    let tappedSet = /* @__PURE__ */ new Set();
+    let trayWrongOnCurrentSlot = 0;
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-mult-tap";
+    sec.innerHTML = `
+    <div class="topbar">
+      <button class="home-btn small"></button>
+      <div class="progress-dots"></div>
+    </div>
+    <div class="mult-problem"></div>
+    <div class="firefly-area"></div>
+    <div class="total-reveal hidden"><span class="display">TOTAL</span><div class="ans-slot-host"></div></div>
+    <div class="digit-tray"></div>
+    <div class="corner-mascot"></div>
+  `;
+    sec.querySelector(".home-btn").insertAdjacentHTML("beforeend", home());
+    sec.querySelector(".home-btn").addEventListener("pointerup", () => router2.go("map"));
+    sec.querySelector(".corner-mascot").insertAdjacentHTML("beforeend", pip("idle"));
+    const relayout = () => layoutMultTap(stage2, sec);
+    renderProgressDots();
+    renderProblem();
+    function renderProgressDots() {
+      const d = sec.querySelector(".progress-dots");
+      d.innerHTML = "";
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i < idx ? " filled" : i === idx ? " current" : "");
+        d.appendChild(dot);
+      }
+    }
+    function renderProblem() {
+      trayWrongOnCurrentSlot = 0;
+      const p = problems[idx];
+      globalCount = 0;
+      tappedSet.clear();
+      const probEl = sec.querySelector(".mult-problem");
+      probEl.innerHTML = `
+      <div class="op-chip display">${p.a}</div>
+      <div class="op-sym display">\xD7</div>
+      <div class="op-chip display">${p.b}</div>
+      <div class="op-sym display">=</div>
+      <div class="op-chip q display">?</div>
+    `;
+      const area = sec.querySelector(".firefly-area");
+      area.innerHTML = "";
+      const blockEls = [];
+      for (let g = 0; g < p.a; g++) {
+        const pad = document.createElement("div");
+        pad.className = "lily-group";
+        pad.insertAdjacentHTML("beforeend", lilypad());
+        const blocks = document.createElement("div");
+        blocks.className = "block-grid";
+        blocks.dataset.count = String(p.b);
+        for (let i = 0; i < p.b; i++) {
+          const wrap = document.createElement("div");
+          wrap.className = "block-host untapped";
+          wrap.dataset.groupIndex = String(g);
+          wrap.dataset.blockIndex = String(i);
+          wrap.insertAdjacentHTML("beforeend", firefly());
+          wrap.addEventListener("pointerup", () => onBlockTap(wrap));
+          blocks.appendChild(wrap);
+          blockEls.push(wrap);
+        }
+        pad.appendChild(blocks);
+        area.appendChild(pad);
+      }
+      blockFlyIn(blockEls);
+      showReveal();
+      relayout();
+    }
+    function onBlockTap(wrap) {
+      const id = `${wrap.dataset.groupIndex}-${wrap.dataset.blockIndex}`;
+      if (tappedSet.has(id)) {
+        sfx.mascotChirp();
+        return;
+      }
+      tappedSet.add(id);
+      globalCount++;
+      tapBlock(wrap, globalCount);
+    }
+    function showReveal() {
+      const p = problems[idx];
+      const reveal = sec.querySelector(".total-reveal");
+      const host = reveal.querySelector(".ans-slot-host");
+      host.innerHTML = `<div class="slot active" data-index="0"></div>`;
+      reveal.classList.remove("hidden");
+      reveal.animate(
+        [{ opacity: 0, transform: "translateY(20px) scale(0.9)" }, { opacity: 1, transform: "translateY(0) scale(1)" }],
+        { duration: 400, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+      );
+      const tray = sec.querySelector(".digit-tray");
+      tray.innerHTML = "";
+      tray.classList.remove("two-row");
+      if (p.answer >= 10) {
+        const values = compoundOptions(p.answer);
+        const buildTile = (n) => {
+          const t = document.createElement("div");
+          t.className = "tile compound mult-option";
+          t.dataset.value = String(n);
+          t.textContent = String(n);
+          return t;
+        };
+        if (values.length > 11) {
+          tray.classList.add("two-row");
+          const half = Math.ceil(values.length / 2);
+          const row1 = document.createElement("div");
+          row1.className = "tile-row";
+          const row2 = document.createElement("div");
+          row2.className = "tile-row";
+          values.forEach((n, i) => (i < half ? row1 : row2).appendChild(buildTile(n)));
+          tray.appendChild(row1);
+          tray.appendChild(row2);
+        } else {
+          values.forEach((n) => tray.appendChild(buildTile(n)));
+        }
+      } else {
+        for (let n = 0; n <= 9; n++) {
+          const t = document.createElement("div");
+          t.className = "tile";
+          t.dataset.value = String(n);
+          t.textContent = String(n);
+          tray.appendChild(t);
+        }
+      }
+      setupDrag();
+    }
+    function setupDrag() {
+      dragMgr = createDragManager({
+        getTargets() {
+          return Array.from(sec.querySelectorAll(".slot")).map((el) => ({
+            el,
+            rect: el.getBoundingClientRect(),
+            active: el.classList.contains("active"),
+            id: el.dataset.index
+          }));
+        },
+        onPickup(payload, el) {
+          tilePickup(el);
+        },
+        async onDrop(payload, target, sourceEl, origin, parentInfo) {
+          if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
+          const correct = problems[idx].answer;
+          if (payload.value !== correct) {
+            totalWrong++;
+            trayWrongOnCurrentSlot++;
+            await tileBounceBack(sourceEl, origin, parentInfo);
+            target.el.classList.add("flash-no");
+            setTimeout(() => target.el.classList.remove("flash-no"), 200);
+            return;
+          }
+          await tileSnapIn(sourceEl, target.el);
+          sfx.correctYay();
+          idx++;
+          renderProgressDots();
+          if (idx >= problems.length) {
+            router2.go("complete", { world, level, wrongCount: totalWrong });
+            return;
+          }
+          sfx.transition();
+          setTimeout(renderProblem, 500);
+        }
+      });
+      renderTrayListeners();
+    }
+    function renderTrayListeners() {
+      sec.querySelectorAll(".tile").forEach((tile) => {
+        tile.onpointerdown = (e) => dragMgr.start(e, tile, { value: parseInt(tile.dataset.value, 10) });
+      });
+    }
+    stage2.appendChild(sec);
+    window.__activeRelayout = relayout;
+    relayout();
+    return () => {
+      if (window.__activeRelayout === relayout) window.__activeRelayout = null;
+      sec.remove();
+    };
+  }
+
+  // src/screens/mult-drag.js
+  function compoundOptions2(correct) {
+    const max = Math.max(20, correct);
+    const tiles = [];
+    for (let n = 10; n <= max; n++) tiles.push(n);
+    return tiles;
+  }
+  function mount6(stage2, ctx2, router2) {
+    const { world, level } = ctx2;
+    stage2.dataset.world = "mult";
+    const problems = getProblems(world, level);
+    let idx = 0;
+    let totalWrong = 0;
+    let dragMgr = null;
+    let trayWrongOnCurrentSlot = 0;
+    const groupContents = [];
+    let groupRowFade = null;
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-mult-drag";
+    const topbar = document.createElement("div");
+    topbar.className = "topbar";
+    const homeBtn = document.createElement("button");
+    homeBtn.className = "home-btn small";
+    homeBtn.insertAdjacentHTML("beforeend", home());
+    homeBtn.addEventListener("pointerup", () => router2.go("map"));
+    const progressDots = document.createElement("div");
+    progressDots.className = "progress-dots";
+    topbar.appendChild(homeBtn);
+    topbar.appendChild(progressDots);
+    const multProblem = document.createElement("div");
+    multProblem.className = "mult-problem";
+    const groupRow = document.createElement("div");
+    groupRow.className = "group-row";
+    const blockPile = document.createElement("div");
+    blockPile.className = "block-pile";
+    const ansHost = document.createElement("div");
+    ansHost.className = "ans-host hidden";
+    const ansLabel = document.createElement("span");
+    ansLabel.className = "display";
+    ansLabel.textContent = "HOW MANY TOTAL?";
+    const ansSlotHost = document.createElement("div");
+    ansSlotHost.className = "ans-slot-host";
+    ansHost.appendChild(ansLabel);
+    ansHost.appendChild(ansSlotHost);
+    const digitTray = document.createElement("div");
+    digitTray.className = "digit-tray hidden";
+    const cornerMascot = document.createElement("div");
+    cornerMascot.className = "corner-mascot";
+    cornerMascot.insertAdjacentHTML("beforeend", pip("idle"));
+    const playCol = document.createElement("div");
+    playCol.className = "play-col";
+    playCol.appendChild(groupRow);
+    playCol.appendChild(blockPile);
+    sec.appendChild(topbar);
+    sec.appendChild(multProblem);
+    sec.appendChild(playCol);
+    sec.appendChild(ansHost);
+    sec.appendChild(digitTray);
+    sec.appendChild(cornerMascot);
+    const relayout = () => layoutMultDrag(stage2, sec);
+    renderProgressDots();
+    renderProblem();
+    function renderProgressDots() {
+      progressDots.textContent = "";
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement("span");
+        dot.className = "dot" + (i < idx ? " filled" : i === idx ? " current" : "");
+        progressDots.appendChild(dot);
+      }
+    }
+    function renderProblem() {
+      trayWrongOnCurrentSlot = 0;
+      const p = problems[idx];
+      groupContents.length = 0;
+      multProblem.textContent = "";
+      const chipA = document.createElement("div");
+      chipA.className = "op-chip display";
+      chipA.textContent = String(p.a);
+      const symMult = document.createElement("div");
+      symMult.className = "op-sym display";
+      symMult.textContent = "\xD7";
+      const chipB = document.createElement("div");
+      chipB.className = "op-chip display";
+      chipB.textContent = String(p.b);
+      const symEq = document.createElement("div");
+      symEq.className = "op-sym display";
+      symEq.textContent = "=";
+      const chipQ = document.createElement("div");
+      chipQ.className = "op-chip q display";
+      chipQ.textContent = "?";
+      multProblem.appendChild(chipA);
+      multProblem.appendChild(symMult);
+      multProblem.appendChild(chipB);
+      multProblem.appendChild(symEq);
+      multProblem.appendChild(chipQ);
+      if (groupRowFade) {
+        groupRowFade.cancel();
+        groupRowFade = null;
+      }
+      groupRow.textContent = "";
+      for (let g = 0; g < p.a; g++) {
+        const tray = document.createElement("div");
+        tray.className = "group-tray";
+        tray.dataset.idx = String(g);
+        for (let i = 0; i < p.b; i++) {
+          const ghost = document.createElement("div");
+          ghost.className = "ghost";
+          tray.appendChild(ghost);
+        }
+        const chip = document.createElement("div");
+        chip.className = "count-chip";
+        chip.textContent = `0 / ${p.b}`;
+        tray.appendChild(chip);
+        groupRow.appendChild(tray);
+        groupContents.push({ filled: 0, needed: p.b });
+      }
+      blockPile.textContent = "";
+      const pileCount = 6;
+      for (let i = 0; i < pileCount; i++) {
+        const wrap = document.createElement("div");
+        wrap.className = "block-host idle-wobble";
+        wrap.style.transform = `rotate(${(Math.random() - 0.5) * 16}deg)`;
+        wrap.insertAdjacentHTML("beforeend", mango());
+        wrap.addEventListener("pointerup", () => onPileTap(wrap));
+        blockPile.appendChild(wrap);
+      }
+      setupAnswerArea();
+      dragMgr = createDragManager({
+        getTargets() {
+          return Array.from(sec.querySelectorAll(".slot")).map((el) => ({
+            el,
+            rect: el.getBoundingClientRect(),
+            active: el.classList.contains("active"),
+            id: "slot-" + el.dataset.index
+          }));
+        },
+        onPickup(_p, el) {
+          tilePickup(el);
+        },
+        async onDrop(payload, target, sourceEl, origin, parentInfo) {
+          if (!target || !String(target.id || "").startsWith("slot-")) return tileBounceBack(sourceEl, origin, parentInfo);
+          const correct = problems[idx].answer;
+          if (payload.value !== correct) {
+            totalWrong++;
+            trayWrongOnCurrentSlot++;
+            await tileBounceBack(sourceEl, origin, parentInfo);
+            target.el.classList.add("flash-no");
+            setTimeout(() => target.el.classList.remove("flash-no"), 200);
+            return;
+          }
+          await tileSnapIn(sourceEl, target.el);
+          sfx.correctYay();
+          idx++;
+          renderProgressDots();
+          if (idx >= problems.length) {
+            router2.go("complete", { world, level, wrongCount: totalWrong });
+          } else {
+            sfx.transition();
+            setTimeout(renderProblem, 500);
+          }
+        }
+      });
+      relayout();
+    }
+    function onPileTap(srcMango) {
+      const gIdx = groupContents.findIndex((g) => g.filled < g.needed);
+      if (gIdx === -1) return;
+      const gc = groupContents[gIdx];
+      const slotIdx = gc.filled;
+      gc.filled++;
+      const tray = groupRow.querySelector(`.group-tray[data-idx="${gIdx}"]`);
+      const ghosts = tray.querySelectorAll(".ghost");
+      const slot = ghosts[slotIdx];
+      const chip = tray.querySelector(".count-chip");
+      const isLast = gc.filled === gc.needed;
+      chip.textContent = isLast ? `\u2605 ${gc.needed}` : `${gc.filled} / ${gc.needed}`;
+      if (isLast) {
+        tray.classList.add("full");
+        sfx.trayFull();
+      }
+      const srcRect = srcMango.getBoundingClientRect();
+      const slotRect = slot.getBoundingClientRect();
+      const stage3 = document.getElementById("stage");
+      const stageRect = stage3.getBoundingClientRect();
+      const logicalW = stage3.offsetWidth || 1280;
+      const scale = stageRect.width / logicalW;
+      const clone = document.createElement("div");
+      clone.className = "block-host";
+      clone.insertAdjacentHTML("beforeend", mango());
+      clone.style.position = "absolute";
+      clone.style.left = `${(srcRect.left - stageRect.left) / scale}px`;
+      clone.style.top = `${(srcRect.top - stageRect.top) / scale}px`;
+      stage3.appendChild(clone);
+      sfx.tilePickup();
+      const dx = (slotRect.left - srcRect.left) / scale;
+      const dy = (slotRect.top - srcRect.top) / scale;
+      clone.animate(
+        [{ transform: "translate(0,0) scale(1.05)" }, { transform: `translate(${dx}px, ${dy}px) scale(1)` }],
+        { duration: 380, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+      ).onfinish = () => {
+        clone.remove();
+        const planted = document.createElement("div");
+        planted.className = "block-host in-group";
+        planted.insertAdjacentHTML("beforeend", mango());
+        planted.style.position = "absolute";
+        planted.style.left = `${slot.offsetLeft}px`;
+        planted.style.top = `${slot.offsetTop}px`;
+        tray.appendChild(planted);
+        if (groupContents.every((g) => g.filled === g.needed)) {
+          setTimeout(showAnswerPhase, 600);
+        }
+      };
+    }
+    function setupAnswerArea() {
+      const p = problems[idx];
+      ansSlotHost.textContent = "";
+      const slot = document.createElement("div");
+      slot.className = "slot active";
+      slot.dataset.index = "0";
+      ansSlotHost.appendChild(slot);
+      ansHost.classList.remove("hidden");
+      digitTray.classList.remove("hidden", "two-row");
+      digitTray.textContent = "";
+      if (p.answer >= 10) {
+        const values = compoundOptions2(p.answer);
+        const buildTile = (n) => {
+          const t = document.createElement("div");
+          t.className = "tile compound mult-option";
+          t.dataset.value = String(n);
+          t.textContent = String(n);
+          t.onpointerdown = (e) => dragMgr.start(e, t, { kind: "digit", value: n });
+          return t;
+        };
+        if (values.length > 11) {
+          digitTray.classList.add("two-row");
+          const half = Math.ceil(values.length / 2);
+          const row1 = document.createElement("div");
+          row1.className = "tile-row";
+          const row2 = document.createElement("div");
+          row2.className = "tile-row";
+          values.forEach((n, i) => (i < half ? row1 : row2).appendChild(buildTile(n)));
+          digitTray.appendChild(row1);
+          digitTray.appendChild(row2);
+        } else {
+          values.forEach((n) => digitTray.appendChild(buildTile(n)));
+        }
+      } else {
+        for (let n = 0; n <= 9; n++) {
+          const t = document.createElement("div");
+          t.className = "tile";
+          t.dataset.value = String(n);
+          t.textContent = String(n);
+          t.onpointerdown = (e) => dragMgr.start(e, t, { kind: "digit", value: n });
+          digitTray.appendChild(t);
+        }
+      }
+    }
+    function showAnswerPhase() {
+      groupRowFade = groupRow.animate(
+        [{ opacity: 1 }, { opacity: 0.4 }],
+        { duration: 400, fill: "forwards" }
+      );
+    }
+    stage2.appendChild(sec);
+    window.__activeRelayout = relayout;
+    relayout();
+    return () => {
+      if (window.__activeRelayout === relayout) window.__activeRelayout = null;
+      sec.remove();
+    };
+  }
+
+  // src/screens/complete.js
+  function mount7(stage2, ctx2, router2) {
+    const { world, level, wrongCount } = ctx2;
+    stage2.dataset.world = world;
+    const stars = starsFor(wrongCount);
+    recordStars(localStorage, world, level, stars);
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-complete";
+    const title = document.createElement("h1");
+    title.className = "complete-title display";
+    title.textContent = "LEVEL CLEAR!";
+    sec.appendChild(title);
+    const meter = document.createElement("div");
+    meter.className = "star-meter big";
+    meter.insertAdjacentHTML("beforeend", star(false));
+    meter.insertAdjacentHTML("beforeend", star(false));
+    meter.insertAdjacentHTML("beforeend", star(false));
+    sec.appendChild(meter);
+    const mascotEl = document.createElement("div");
+    mascotEl.className = "complete-mascot";
+    const m = world === "add" ? banji : world === "sub" ? mo : pip;
+    mascotEl.insertAdjacentHTML("beforeend", m("idle"));
+    sec.appendChild(mascotEl);
+    const buttons = document.createElement("div");
+    buttons.className = "complete-buttons";
+    const againBtn = document.createElement("button");
+    againBtn.className = "btn ghost";
+    againBtn.dataset.act = "again";
+    againBtn.textContent = "\u21BB AGAIN";
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "btn success";
+    nextBtn.dataset.act = "next";
+    const isLastLevel = level >= 6;
+    nextBtn.textContent = isLastLevel ? "\u25B6 MAP" : "\u25B6 NEXT";
+    buttons.appendChild(againBtn);
+    buttons.appendChild(nextBtn);
+    if (!isLastLevel) {
+      const mapBtn = document.createElement("button");
+      mapBtn.className = "btn ghost";
+      mapBtn.dataset.act = "map";
+      mapBtn.textContent = "\u{1F3E0} MAP";
+      buttons.appendChild(mapBtn);
+    }
+    buttons.addEventListener("pointerup", (e) => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "again") {
+        sfx.transition();
+        router2.go("level", { world, level });
+      } else if (act === "next") {
+        sfx.transition();
+        if (isLastLevel) router2.go("map");
+        else router2.go("level", { world, level: level + 1 });
+      } else if (act === "map") {
+        sfx.transition();
+        router2.go("map");
+      }
+    });
+    sec.appendChild(buttons);
+    const confettiHost = document.createElement("div");
+    confettiHost.className = "confetti-host";
+    sec.appendChild(confettiHost);
+    stage2.appendChild(sec);
+    burstConfetti(confettiHost, 80);
+    sfx.levelComplete();
+    const starEls = sec.querySelectorAll(".star-meter .star");
+    starEls.forEach((s) => s.classList.remove("filled", "earned"));
+    revealStars(starEls, stars).then(() => {
+      const svg = mascotEl.querySelector("svg");
+      if (svg) mascotCelebrate(svg);
+    });
+    return () => sec.remove();
+  }
+
+  // src/screens/settings.js
+  function mount8(stage2, state2, router2) {
+    const sec = document.createElement("section");
+    sec.className = "screen active";
+    sec.id = "screen-settings";
+    const card = document.createElement("div");
+    card.className = "parent-gate-card";
+    const h2 = document.createElement("h2");
+    h2.className = "display";
+    h2.textContent = "PARENTS ONLY";
+    const p = document.createElement("p");
+    const q = document.createElement("span");
+    q.id = "pg-q";
+    p.append("Tap the answer to ", q);
+    const btnHost = document.createElement("div");
+    btnHost.className = "pg-buttons";
+    const err = document.createElement("div");
+    err.className = "pg-error hidden";
+    err.textContent = "Try again";
+    card.append(h2, p, btnHost, err);
+    sec.appendChild(card);
+    const a = 2 + Math.floor(Math.random() * 7);
+    const b = 1 + Math.floor(Math.random() * 6);
+    const c = 1 + Math.floor(Math.random() * 5);
+    const answer = a + b + c;
+    q.textContent = `${a} + ${b} + ${c} = ?`;
+    const options = /* @__PURE__ */ new Set([answer]);
+    while (options.size < 4) {
+      const candidate = answer + (Math.floor(Math.random() * 7) - 3);
+      if (candidate > 0 && candidate !== answer) options.add(candidate);
+    }
+    let wrongCount = 0;
+    [...options].sort(() => Math.random() - 0.5).forEach((n) => {
+      const b2 = document.createElement("button");
+      b2.className = "btn ghost";
+      b2.textContent = String(n);
+      b2.addEventListener("pointerup", () => {
+        if (n === answer) {
+          showSettings();
+          return;
+        }
+        err.classList.remove("hidden");
+        b2.classList.add("disabled");
+        wrongCount++;
+        if (wrongCount >= 2) {
+          localStorage.setItem("bm.parentLockUntil", String(Date.now() + 5e3));
+          router2.go("splash");
+        }
+      });
+      btnHost.appendChild(b2);
+    });
+    function showSettings() {
+      sec.innerHTML = "";
+      const c2 = document.createElement("div");
+      c2.className = "settings-card";
+      const h = document.createElement("h2");
+      h.className = "display";
+      h.textContent = "SETTINGS";
+      const soundBtn = document.createElement("button");
+      soundBtn.className = "btn";
+      soundBtn.textContent = `SOUND: ${isEnabled() ? "ON" : "OFF"}`;
+      soundBtn.addEventListener("pointerup", () => {
+        setEnabled(!isEnabled());
+        soundBtn.textContent = `SOUND: ${isEnabled() ? "ON" : "OFF"}`;
+      });
+      const unlockBtn = document.createElement("button");
+      unlockBtn.className = "btn";
+      const unlocked = localStorage.getItem("bm.unlockAll") === "1";
+      unlockBtn.textContent = unlocked ? "LOCK BACK" : "UNLOCK ALL LEVELS";
+      unlockBtn.addEventListener("pointerup", () => {
+        const nowOn = localStorage.getItem("bm.unlockAll") !== "1";
+        if (nowOn) localStorage.setItem("bm.unlockAll", "1");
+        else localStorage.removeItem("bm.unlockAll");
+        unlockBtn.textContent = nowOn ? "LOCK BACK" : "UNLOCK ALL LEVELS";
+      });
+      const resetBtn = document.createElement("button");
+      resetBtn.className = "btn ghost";
+      resetBtn.textContent = "RESET PROGRESS";
+      resetBtn.addEventListener("pointerup", () => {
+        if (confirm("Reset all progress? This cannot be undone.")) {
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith("bm.stars.") || k === "bm.unlockAll")) localStorage.removeItem(k);
+          }
+          router2.go("splash");
+        }
+      });
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "btn ghost";
+      closeBtn.textContent = "CLOSE";
+      closeBtn.addEventListener("pointerup", () => router2.go("splash"));
+      c2.append(h, soundBtn, unlockBtn, resetBtn, closeBtn);
+      sec.appendChild(c2);
+    }
+    stage2.appendChild(sec);
+    return () => sec.remove();
+  }
+
+  // src/game.js
+  var stage = document.getElementById("stage");
+  var viewport = document.getElementById("viewport");
+  var LANDSCAPE = { w: 1280, h: 800 };
+  var PORTRAIT_W = 720;
+  var PORTRAIT_ASPECT_THRESHOLD = 1.2;
+  var lastOrient = null;
+  function fitStage() {
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    if (!vw || !vh) return;
+    const isPortrait2 = vw / vh < PORTRAIT_ASPECT_THRESHOLD;
+    const nextOrient = isPortrait2 ? "portrait" : "landscape";
+    stage.dataset.orient = nextOrient;
+    let scale;
+    if (isPortrait2) {
+      scale = vw / PORTRAIT_W;
+      const logicalH = vh / scale;
+      stage.style.width = `${PORTRAIT_W}px`;
+      stage.style.height = `${logicalH}px`;
+      stage.style.setProperty("--stage-h", `${logicalH}px`);
+    } else {
+      scale = Math.min(vw / LANDSCAPE.w, vh / LANDSCAPE.h);
+      stage.style.width = `${LANDSCAPE.w}px`;
+      stage.style.height = `${LANDSCAPE.h}px`;
+      stage.style.setProperty("--stage-h", `${LANDSCAPE.h}px`);
+    }
+    stage.style.transform = `scale(${scale})`;
+    if (lastOrient !== null && lastOrient !== nextOrient && router.lastRoute) {
+      router.go(router.lastRoute.name, router.lastRoute.ctx);
+    }
+    lastOrient = nextOrient;
+    if (typeof window.__activeRelayout === "function") window.__activeRelayout();
+  }
+  var state = { progress: loadProgress() };
+  var router = {
+    current: null,
+    lastRoute: null,
+    go(name, ctx2 = {}, opts = {}) {
+      if (this.current) this.current();
+      this.lastRoute = { name, ctx: ctx2 };
+      let unmount;
+      switch (name) {
+        case "splash":
+          unmount = mount(stage, state, this);
+          break;
+        case "map":
+          state.progress = loadProgress();
+          unmount = mount2(stage, state, this);
+          break;
+        case "level":
+          if (ctx2.world === "add") unmount = mount3(stage, ctx2, this);
+          else if (ctx2.world === "sub") unmount = mount4(stage, ctx2, this);
+          else if (ctx2.world === "mult" && ctx2.level <= 3) unmount = mount5(stage, ctx2, this);
+          else if (ctx2.world === "mult" && ctx2.level >= 4) unmount = mount6(stage, ctx2, this);
+          break;
+        case "complete":
+          unmount = mount7(stage, ctx2, this);
+          break;
+        case "settings":
+          unmount = mount8(stage, state, this);
+          break;
+        default:
+          console.warn("Unknown route:", name);
+      }
+      this.current = unmount;
+      if (!opts.fromPop) {
+        const entry = { mathRoute: { name, ctx: ctx2 } };
+        try {
+          if (opts.replace) history.replaceState(entry, "");
+          else history.pushState(entry, "");
+        } catch (_) {
+        }
+      }
+    }
+  };
+  window.addEventListener("popstate", (e) => {
+    const r = e.state && e.state.mathRoute;
+    if (r && r.name) {
+      router.go(r.name, r.ctx || {}, { fromPop: true });
+    } else {
+      router.go("splash", {}, { fromPop: true });
+    }
+  });
+  window.addEventListener("resize", fitStage);
+  window.addEventListener("orientationchange", fitStage);
+  fitStage();
+  router.go("splash", {}, { replace: true });
+  window.__router = router;
+})();
+
+</script>
+</body>
+</html>
