@@ -747,6 +747,54 @@ export function animateBorrow({ tensTopEl, onesTopEl, newTensDigit, newOnesValue
   });
 }
 
+// ===== Daniel: N-column borrow pre-pass =====
+// Plays analyzeColumnsSub's ordered regroup steps across the top-operand cells:
+// strike the digit that changes and write its new (regrouped) value above it.
+// Runs right-to-left and chains through zeros (each 0 → 9). The kid then just
+// reads the regrouped numbers and drops the answer digits — they never perform
+// the borrow themselves (same contract as Jhanav's sub).
+export function animateBorrowChain(sec, steps) {
+  return new Promise((resolve) => {
+    if (!steps || !steps.length) { resolve(); return; }
+    sfx.borrowWhoosh();
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    let i = 0;
+    const playStep = () => {
+      if (i >= steps.length) { setTimeout(resolve, 350); return; }
+      const s = steps[i++];
+      const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
+      if (cell) {
+        const strike = document.createElement("div");
+        strike.className = "strike";
+        const svg = document.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", "0 0 100 120");
+        svg.setAttribute("preserveAspectRatio", "none");
+        const line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", "16"); line.setAttribute("y1", "98");
+        line.setAttribute("x2", "84"); line.setAttribute("y2", "22");
+        line.setAttribute("stroke", "#E07B2E");
+        line.setAttribute("stroke-width", "7");
+        line.setAttribute("stroke-linecap", "round");
+        svg.appendChild(line);
+        strike.appendChild(svg);
+        cell.appendChild(strike);
+
+        const mark = document.createElement("div");
+        mark.className = "regroup-mark";
+        mark.textContent = String(s.to);
+        cell.appendChild(mark);
+        mark.animate(
+          [{ opacity: 0, transform: "translateX(-50%) scale(0.4)" },
+           { opacity: 1, transform: "translateX(-50%) scale(1)" }],
+          { duration: 450, easing: "cubic-bezier(0.45,0.05,0.25,1)", fill: "forwards" }
+        );
+      }
+      setTimeout(playStep, 560);
+    };
+    playStep();
+  });
+}
+
 // ===== TASK 19: Block Tap-Count Badge + Fly-In Animation =====
 
 export function tapBlock(blockEl, count) {

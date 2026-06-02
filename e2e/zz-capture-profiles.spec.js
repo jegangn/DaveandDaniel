@@ -54,4 +54,9 @@ test(`capture profile screens @ ${TABLET.width}x${TABLET.height}`, async ({ page
   await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nadd', level: 5 }); });
   await page.waitForTimeout(400);
   await shot(page, '05-col-add', TABLET);
+
+  // col-sub M5 — let the across-zero borrow pre-pass settle, then capture.
+  await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nsub', level: 5 }); });
+  await page.waitForTimeout(4000);
+  await shot(page, '06-col-sub-borrow', TABLET);
 });

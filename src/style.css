@@ -1374,6 +1374,14 @@ button {
 .col-ws .cell {
   height: 104px; font-size: 76px; line-height: 104px; text-align: center;
   color: var(--ink); font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+  position: relative; /* anchors the borrow strike + regroup mark */
+}
+/* Regrouped value written above a struck digit during the borrow pre-pass. */
+.regroup-mark {
+  position: absolute; left: 50%; bottom: calc(100% - 4px); transform: translateX(-50%);
+  font-size: 34px; line-height: 1; color: var(--world-accent); white-space: nowrap;
+  font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+  pointer-events: none; z-index: 7;
 }
 .col-ws .ws-op { display: flex; align-items: center; justify-content: center; min-width: 52px; }
 .col-ws .ws-op.op {
