@@ -59,4 +59,9 @@ test(`capture profile screens @ ${TABLET.width}x${TABLET.height}`, async ({ page
   await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nsub', level: 5 }); });
   await page.waitForTimeout(4000);
   await shot(page, '06-col-sub-borrow', TABLET);
+
+  // long multiplication (2×2 layout: two partials + sum)
+  await page.evaluate(() => { window.__setProfile('daniel'); window.__router.go('level', { world: 'nmul', level: 4 }); });
+  await page.waitForTimeout(500);
+  await shot(page, '07-long-mult', TABLET);
 });

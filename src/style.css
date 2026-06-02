@@ -1405,3 +1405,14 @@ button {
 #stage[data-orient="portrait"] .col-ws .cell,
 #stage[data-orient="portrait"] .col-ws .slot { height: 92px; font-size: 64px; line-height: 92px; }
 #stage[data-orient="portrait"] .col-ws .ws-op.op { font-size: 60px; }
+
+/* ----- Long multiplication (more rows → tighter cells) --------------- */
+.lm-ws { --col-w: 76px; top: 64px; gap: 4px 8px; }
+.lm-ws .cell,
+.lm-ws .slot { height: 80px; font-size: 58px; line-height: 80px; }
+.lm-ws .ws-op.op { font-size: 54px; }
+.lm-ws .carry-cell { height: 36px; font-size: 26px; line-height: 36px; }
+.lm-ws .regroup-mark { font-size: 26px; }
+#stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
+#stage[data-orient="portrait"] .lm-ws .cell,
+#stage[data-orient="portrait"] .lm-ws .slot { height: 70px; font-size: 50px; line-height: 70px; }
