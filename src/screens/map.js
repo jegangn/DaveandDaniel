@@ -25,6 +25,15 @@ export function mount(stage, state, router) {
   meter.insertAdjacentHTML("beforeend", `STARS: ${star(true)} ${totalStars(progress, worldIdsOf(prof))} / ${maxStars}`);
   sec.appendChild(meter);
 
+  // Daniel's board gets a "MISSION BOARD" header (Dave keeps Jhanav's title-less
+  // map exactly).
+  if (prof.id === "daniel") {
+    const boardTitle = document.createElement("h2");
+    boardTitle.className = "map-title display";
+    boardTitle.textContent = prof.mapTitle;
+    sec.appendChild(boardTitle);
+  }
+
   const grid = document.createElement("div");
   grid.className = "world-grid";
   // Expose the world count so the grid can lay out 3 (Dave) or 4 (Daniel) panels.

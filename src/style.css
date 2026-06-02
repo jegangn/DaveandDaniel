@@ -1440,3 +1440,17 @@ button {
 #stage[data-orient="portrait"] .div-ws { --col-w: 74px; top: 50%; }
 #stage[data-orient="portrait"] .div-ws .cell,
 #stage[data-orient="portrait"] .div-ws .slot { height: 84px; font-size: 60px; line-height: 84px; }
+
+/* ----- Daniel: Mission Board title + CLASSIFIED locks ---------------- */
+.map-title {
+  position: absolute; top: 34px; left: 50%; transform: translateX(-50%);
+  margin: 0; font-size: 34px; letter-spacing: 4px; color: var(--world-primary);
+}
+#stage[data-profile="daniel"] .level-node.locked { position: relative; }
+#stage[data-profile="daniel"] .level-node.locked svg { transform: translateY(-9px) scale(0.78); }
+#stage[data-profile="daniel"] .level-node.locked::after {
+  content: "CLASSIFIED"; position: absolute; left: 0; right: 0; bottom: 9px;
+  font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 10px;
+  letter-spacing: 1.5px; color: var(--world-accent); text-align: center;
+}
+#stage[data-orient="portrait"] .map-title { font-size: 22px; top: 28px; letter-spacing: 2px; }

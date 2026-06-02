@@ -42,8 +42,9 @@ test(`capture profile screens @ ${TABLET.width}x${TABLET.height}`, async ({ page
   await page.waitForTimeout(300);
   await shot(page, '03-daniel-splash', TABLET);
 
-  // Daniel's mission board (unlock so nodes show, then enter)
-  await unlockAll(page, 'daniel');
+  // Daniel's mission board — fresh save so the CLASSIFIED locks + MISSION BOARD
+  // title are visible (L1 of each world open, the rest locked).
+  await page.evaluate(() => localStorage.clear());
   await page.goto('/?profile=daniel');
   await page.locator('.splash-play').click();
   await page.waitForTimeout(350);
