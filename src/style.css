@@ -1,0 +1,1223 @@
+:root {
+  --bg-paper: #EFDDB4;
+  --bg-card: #FFF7E2;
+  --ink: #2B1A0B;
+  --ink-soft: #7A5622;
+  --success: #41C167;
+  --success-deep: #1B7E36;
+  --gentle-no: #FF7A40;
+  --star: #FFC230;
+  --star-glow: #FFF0A0;
+  --lock: #9C8C6E;
+
+  --world-primary: #FFB42E;
+  --world-accent: #FF7A40;
+  --world-sky: #79CFE0;
+  --world-ground: #3E9E3A;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --s-9: 96px; --s-10: 128px; --s-11: 160px;
+
+  --r-sm: 14px; --r-md: 24px; --r-lg: 36px; --r-xl: 52px; --r-pill: 9999px;
+
+  --sh-1: 0 3px 0 #C79152, 0 5px 12px rgba(58,34,8,.22);
+  --sh-2: 0 6px 0 #A86A2C, 0 10px 20px rgba(58,34,8,.26);
+  --sh-3: 0 9px 0 #A86A2C, 0 16px 30px rgba(58,34,8,.30);
+  --sh-pressed: 0 2px 0 #A86A2C, 0 3px 7px rgba(58,34,8,.22);
+
+  --ease-pop: cubic-bezier(0.34, 1.6, 0.5, 1);
+  --ease-soft: cubic-bezier(0.45, 0.05, 0.25, 1);
+  --ease-snap: cubic-bezier(0.25, 0.9, 0.3, 1.4);
+  --ease-elastic: cubic-bezier(0.7, -0.5, 0.3, 1.5);
+  --ease-arc: cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+#stage[data-world="add"]  { --world-primary:#FFB42E; --world-accent:#FF7A40; --world-sky:#79CFE0; --world-ground:#3E9E3A; }
+#stage[data-world="sub"]  { --world-primary:#2FBEBE; --world-accent:#4A9EFF; --world-sky:#9FE2DF; --world-ground:#4FA88F; }
+#stage[data-world="mult"] { --world-primary:#E0921F; --world-accent:#79AE3C; --world-sky:#F6CE74; --world-ground:#7A5A24; }
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: var(--bg-paper); color: var(--ink);
+  font-family: 'Nunito', 'Avenir Next', system-ui, sans-serif;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#viewport {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+
+#stage {
+  position: relative;
+  width: 1280px; height: 800px;
+  /* Prevent the flex parent from shrinking the stage below its declared
+     logical size — the transform-scale handles fit, not flex layout. */
+  flex-shrink: 0;
+  transform-origin: center center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--world-sky) 55%, #fff) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 88%, #fff) 0%, var(--world-sky) 100%);
+  overflow: hidden;
+  touch-action: none;
+}
+
+#stage[data-orient="portrait"] {
+  width: 720px;
+  height: 1280px;
+}
+
+.screen { position: absolute; inset: 0; display: none; }
+.screen.active { display: block; }
+.display { font-family: 'Lilita One', 'Bungee', system-ui; font-weight: 400; }
+
+.tile {
+  width: 96px; height: 96px;
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, #FFFDF4 0%, var(--bg-card) 60%, color-mix(in srgb, var(--bg-card) 88%, var(--ink) 12%) 100%);
+  border: 4px solid var(--ink);
+  box-shadow: var(--sh-2), inset 0 4px 0 rgba(255,255,255,.7), inset 0 -5px 0 rgba(120,70,20,.10);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 64px; color: var(--ink);
+  cursor: grab; user-select: none;
+  transition: transform .12s var(--ease-pop), box-shadow .12s var(--ease-pop);
+  position: relative;
+  touch-action: none;
+}
+.tile.dragging {
+  transform: scale(1.15) translateY(-8px);
+  box-shadow: var(--sh-3);
+  z-index: 200; cursor: grabbing;
+  transition: none;
+}
+.tile.dim     { opacity: .3; transform: scale(.94); pointer-events: auto; }
+.tile.hint-dim{ opacity: .18; transform: scale(.92); }
+.tile.hint-target { animation: hintPulse 2s var(--ease-soft) infinite; }
+@keyframes hintPulse {
+  0%,100% { transform: scale(1); box-shadow: 0 0 0 0 var(--star-glow); }
+  50%     { transform: scale(1.05); box-shadow: 0 0 24px 8px var(--star-glow); }
+}
+
+.slot {
+  width: 100px; height: 120px;
+  border-radius: var(--r-md);
+  border: 4px dashed var(--ink-soft);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 96px; color: var(--ink);
+  position: relative;
+}
+.slot.inactive  { opacity: .5; }
+.slot.active    { border-style: solid; border-color: var(--world-primary); animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.slot.filled    { border-style: solid; border-color: var(--ink); animation: none; }
+.slot.flash-no  { border-color: var(--gentle-no); animation: slotShake .3s var(--ease-elastic); }
+@keyframes slotPulse {
+  0%   { box-shadow: 0 0 0 0 var(--world-primary); }
+  60%  { box-shadow: 0 0 0 16px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes slotShake {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(5deg); }
+  50% { transform: rotate(-5deg); }
+  75% { transform: rotate(3deg); }
+}
+@keyframes slotCorrectFlash {
+  0%   { box-shadow: 0 0 0 0 var(--success), 0 0 0 0 var(--star-glow);
+         border-color: var(--success-deep); }
+  40%  { box-shadow: 0 0 0 18px rgba(74, 214, 109, 0.55), 0 0 28px 12px rgba(255, 241, 168, 0.8);
+         border-color: var(--success-deep); }
+  100% { box-shadow: 0 0 0 32px rgba(74, 214, 109, 0), 0 0 36px 18px rgba(255, 241, 168, 0);
+         border-color: var(--ink); }
+}
+@keyframes slotDigitPunch {
+  0%   { transform: scale(0.6); }
+  55%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.slot.filled.just-filled {
+  animation: slotCorrectFlash 0.7s var(--ease-pop);
+}
+.slot.filled.just-filled {
+  /* Punch-in the digit text */
+  display: inline-flex;
+}
+.slot.filled.just-filled::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.slot.just-filled {
+  animation: slotCorrectFlash 0.7s var(--ease-pop), slotDigitPunch 0.4s var(--ease-pop);
+}
+
+/* Sparkle particles spawned by correctBurst() */
+.spark-particle {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 400;
+  box-shadow: 0 0 8px currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.mascot-sparkle {
+  position: absolute;
+  width: 28px; height: 28px;
+  pointer-events: none;
+  z-index: 350;
+  background: var(--star);
+  /* CSS-only 4-point star using clip-path */
+  clip-path: polygon(50% 0%, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0% 50%, 40% 38%);
+  filter: drop-shadow(0 0 8px var(--star-glow));
+}
+.mascot-sparkle:nth-child(3n) { background: var(--world-primary); }
+.mascot-sparkle:nth-child(3n+1) { background: var(--success); }
+
+.block-host {
+  width: 96px; height: 96px;
+  display: inline-block;
+  cursor: grab;
+  transition: transform .2s var(--ease-pop);
+  filter: drop-shadow(0 4px 0 rgba(120,70,20,0.25));
+  touch-action: none;
+}
+.block-host.idle-wobble { animation: blockWobble 2s ease-in-out infinite; }
+@keyframes blockWobble { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.block-host.untapped { opacity: .55; filter: none; }
+.block-host.tapped   { opacity: 1; animation: blockPop .35s var(--ease-pop); }
+.block-host.dragging { transform: scale(1.15); animation: none; z-index: 200; cursor: grabbing; }
+.block-host.in-group { transform: scale(1); animation: none; }
+@keyframes blockPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.4); }
+  100% { transform: scale(1.05); }
+}
+
+.block-host .glow circle { transition: opacity .35s var(--ease-pop); }
+.block-host.tapped .glow circle { opacity: .7; }
+
+/* Task 16 count-badge first pass — superseded by Task 19 definition below */
+
+/* Task 16 group-tray styles superseded by Task 29 — removed to avoid cascade conflicts */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 12px;
+  min-width: 280px; height: 110px;
+  border-radius: var(--r-pill);
+  border-width: 4px !important;
+  border-style: solid !important;
+  border-color: var(--ink) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-primary) 72%, #fff) 0%, var(--world-primary) 52%, color-mix(in srgb, var(--world-primary) 82%, var(--ink) 18%) 100%); color: var(--ink);
+  font-family: 'Lilita One', system-ui; font-size: 36px;
+  cursor: pointer; user-select: none;
+  box-shadow: var(--sh-3), inset 0 5px 0 rgba(255,255,255,.45), inset 0 -7px 0 rgba(120,60,10,.14);
+  transition: transform .08s var(--ease-pop), box-shadow .08s var(--ease-pop);
+  padding: 0 32px;
+  /* Always crisp — no browser focus ring, tap highlight, hover fade, or
+     UA-default border style can mute these. */
+  outline: 0 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.btn:active { transform: translateY(6px); box-shadow: var(--sh-pressed); }
+.btn:focus, .btn:focus-visible, .btn:hover {
+  outline: 0 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  border-style: solid !important;
+  border-color: var(--ink) !important;
+}
+button {
+  outline: 0 !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:disabled, .btn.disabled {
+  /* Restore opacity here since the global .btn rule pins it to 1 with
+     !important; the explicit disabled state still needs to mute. */
+  opacity: .55 !important;
+}
+.btn.pill   { min-width: 480px; height: 120px; font-size: 56px; }
+.btn.ghost  { background: linear-gradient(180deg, #FFFDF4, var(--bg-card)); }
+.btn.success{ background: linear-gradient(180deg, color-mix(in srgb, var(--success) 75%, #fff), var(--success) 55%, var(--success-deep)); color: #fff; }
+.btn:disabled, .btn.disabled {
+  opacity: .55; cursor: not-allowed; box-shadow: none;
+  background: var(--ink-soft);
+}
+
+.star-meter { display: inline-flex; gap: 8px; align-items: center; }
+.star-meter .star { width: 32px; height: 32px; }
+.star-meter.big .star { width: 110px; height: 110px; }
+.star-meter .star.empty path { opacity: .25; }
+.star-meter .star.earned {
+  filter: drop-shadow(0 0 12px var(--star-glow));
+  animation: starReveal .5s var(--ease-pop);
+}
+.star-meter .star.earned path { fill: var(--star); opacity: 1; }
+@keyframes starReveal {
+  0%   { transform: translateY(-80px) scale(0); opacity: 0; }
+  60%  { transform: translateY(0) scale(1.3); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ===== TASK 17: Carry & Borrow Chip Styles ===== */
+.carry-chip, .borrow-chip {
+  position: fixed;
+  width: 60px; height: 60px;
+  border-radius: var(--r-md);
+  background: var(--world-primary);
+  border: 3px solid var(--ink);
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif; font-weight: 700; font-size: 40px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 500;
+}
+.borrow-chip { background: var(--world-accent); }
+.carry-slot {
+  position: absolute; width: 60px; height: 60px;
+  border-radius: var(--r-md);
+  border: 3px dashed var(--ink-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif; font-weight: 700; font-size: 40px;
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity .3s var(--ease-pop);
+  /* left/top set inline by JS per problem — no hardcoded position here */
+}
+.carry-slot.filled { opacity: 1; border-style: solid; }
+
+/* ===== TASK 18: Borrow Animation Styles ===== */
+.strike {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.strike svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.strike line {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: strikeDraw 1.3s cubic-bezier(0.45, 0.05, 0.25, 1) forwards;
+}
+@keyframes strikeDraw { to { stroke-dashoffset: 0; } }
+
+.borrow-plus {
+  position: fixed;
+  width: 36px; height: 36px;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  pointer-events: none;
+  z-index: 500;
+}
+.borrow-replacement {
+  position: absolute;
+  width: 60px; height: 60px;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 56px; color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+/* Pencil-style "1" carry mark above-LEFT of the unchanged ones digit.
+   Same size as the new-tens digit above the struck "3" so they read as
+   a matched pair; tinted with the borrow accent so the kid sees it as
+   a teacher annotation. */
+.borrow-replacement.borrow-carry {
+  color: #FF7A40;
+}
+
+/* ===== TASK 19: Block Styles ===== */
+.count-badge {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--gentle-no);
+  color: white;
+  font-family: 'Lilita One', system-ui;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: all .2s var(--ease-pop);
+}
+.count-badge.show { opacity: 1; transform: scale(1); }
+
+.block.idle-wobble {
+  animation: blockWobble 1.5s ease-in-out infinite;
+}
+@keyframes blockWobble {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* ===== TASK 21: Mascot Animations ===== */
+.mascot { display: block; }
+.mascot.idle { animation: mascotBreath 4s var(--ease-soft) infinite; }
+.mascot.idle .eye-l circle:first-child,
+.mascot.idle .eye-r circle:first-child { animation: mascotBlink 4s steps(1) infinite; }
+.mascot.celebrate { animation: mascotCelebrate .8s var(--ease-pop) 3; }
+.mascot.celebrate .wing-l, .mascot.celebrate .wing-r { animation: wingFlap .8s ease-in-out 3; }
+
+@keyframes mascotBreath { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
+@keyframes mascotBlink  { 0%,53%,57%,100% { opacity: 1; } 54%,56% { opacity: .1; } }
+@keyframes mascotCelebrate {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-12px) rotate(-3deg); }
+  50%  { transform: translateY(0); }
+  75%  { transform: translateY(-8px) rotate(3deg); }
+  100% { transform: translateY(0); }
+}
+@keyframes wingFlap {
+  0%,100% { transform: rotate(0); }
+  50% { transform: rotate(-20deg); }
+}
+
+/* ===== Expression presets (CSS-only, all mascots) ===== */
+.mascot .eye-state,
+.mascot .mouth-state,
+.mascot .brow-state { display: none; }
+
+.mascot.idle .eye-state.idle,
+.mascot.idle .mouth-state.idle,
+.mascot.idle .brow-state.idle { display: inline; }
+
+.mascot.happy .eye-state.idle,
+.mascot.happy .brow-state.idle { display: inline; }
+.mascot.happy .mouth-state.happy { display: inline; }
+
+.mascot.super-happy .eye-state.super-happy,
+.mascot.super-happy .brow-state.up,
+.mascot.super-happy .mouth-state.super-happy { display: inline; }
+
+.mascot.dizzy .eye-state.dizzy,
+.mascot.dizzy .brow-state.idle,
+.mascot.dizzy .mouth-state.dizzy { display: inline; }
+
+.mascot.surprised .eye-state.surprised,
+.mascot.surprised .brow-state.up,
+.mascot.surprised .mouth-state.surprised { display: inline; }
+
+/* ===== Transform-origins (new 200×200 viewBox geometry) ===== */
+.mascot .head    { transform-origin: 100px 100px; }
+.mascot .tail    { transform-origin: 100px 150px; }
+.mascot .wing-l  { transform-origin:  65px 110px; }
+.mascot .wing-r  { transform-origin: 135px 110px; }
+.mascot .arm-l   { transform-origin:  62px 122px; }
+.mascot .arm-r   { transform-origin: 138px 122px; }
+.mascot .ear-l   { transform-origin:  80px  84px; }
+.mascot .ear-r   { transform-origin: 120px  84px; }
+
+/* ===== TASK 22: Confetti Styles ===== */
+.confetti-particle { position: absolute; pointer-events: none; }
+.confetti-particle svg { width: 20px; height: 20px; }
+
+/* ===== TASK 23: Node Unlock Styles ===== */
+.level-node.unlocking { animation: nodeShake .4s var(--ease-elastic); }
+@keyframes nodeShake { 0%,100% { transform: scale(1); } 25% { transform: scale(1.06) rotate(6deg); } 75% { transform: scale(1.06) rotate(-6deg); } }
+
+/* ===== TASK 24: Splash Screen ===== */
+#screen-splash {
+  background:
+    radial-gradient(80% 50% at 50% 12%, rgba(255,255,255,.5), transparent 60%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--world-sky) 80%, #fff) 0%, var(--world-sky) 52%, var(--world-ground) 60%, color-mix(in srgb, var(--world-ground) 85%, var(--ink) 15%) 100%);
+}
+.splash-title {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  font-size: 88px; line-height: 1; margin: 0;
+  color: var(--ink);
+  text-shadow: 0 4px 0 var(--star);
+  letter-spacing: 2px;
+  text-align: center;
+}
+.splash-mascot {
+  position: absolute; top: 220px; left: 50%; transform: translateX(-50%);
+  width: 340px; height: 340px;
+}
+.splash-mascot svg { width: 100%; height: 100%; }
+.splash-play {
+  position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+  animation: playPulse 2s var(--ease-soft) infinite;
+}
+@keyframes playPulse {
+  0%,100% { box-shadow: var(--sh-3), 0 0 0 0 var(--world-primary); }
+  50%     { box-shadow: var(--sh-3), 0 0 0 18px transparent; }
+}
+.cog-corner {
+  position: absolute; top: 32px; right: 32px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-pill);
+  box-shadow: var(--sh-1);
+}
+.cog-corner svg { width: 56px; height: 56px; }
+.cog-label { font-size: 28px; color: var(--ink); letter-spacing: 0.04em; }
+.parent-lock-banner {
+  position: absolute; top: 250px; left: 50%; transform: translateX(-50%);
+  background: var(--gentle-no); color: #FFF; border: 4px solid var(--ink);
+  border-radius: var(--r-pill);
+  padding: 18px 40px; font-size: 32px; box-shadow: var(--sh-2);
+  letter-spacing: 0.04em;
+  z-index: 50;
+}
+
+/* ===== TASK 25: World Map Screen ===== */
+#screen-map {
+  background: linear-gradient(to bottom, #FBEFCD 0%, #ECD7A4 100%);
+  padding: 80px 24px 24px;
+}
+.home-btn {
+  position: absolute; top: 32px; left: 32px;
+  width: 80px; height: 80px;
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  box-shadow: var(--sh-1);
+  cursor: pointer;
+}
+.home-btn svg { width: 100%; height: 100%; padding: 12px; }
+
+.star-meter.total {
+  position: absolute; top: 40px; right: 32px;
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+  display: flex; align-items: center; gap: 8px;
+}
+.star-meter.total svg.star { width: 32px; height: 32px; vertical-align: middle; }
+
+.world-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 24px; height: 100%; padding: 120px 24px 24px;
+}
+.world-panel {
+  background: linear-gradient(180deg, #FFFBEE 0%, var(--bg-card) 100%);
+  border: 5px solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1), inset 0 0 0 3px rgba(255,255,255,.5);
+  padding: 16px; position: relative; overflow: hidden;
+}
+.world-title { text-align: center; font-size: 28px; margin: 0 0 12px; }
+.world-add  .world-title { color: #B07020; }
+.world-sub  .world-title { color: #2C8585; }
+.world-mult .world-title { color: #B26818; }
+
+.level-path {
+  display: grid; grid-template-columns: repeat(2, 100px);
+  justify-content: center; align-content: space-around;
+  gap: 24px 32px; height: calc(100% - 40px);
+}
+.level-node {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 5px solid var(--ink);
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--world-primary) 60%, #fff), var(--world-primary) 72%);
+  color: #fff;
+  font-family: 'Lilita One', system-ui; font-size: 48px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  box-shadow: var(--sh-1), inset 0 4px 0 rgba(255,255,255,.4), inset 0 -6px 0 rgba(120,60,10,.15);
+}
+.level-node.locked { background: var(--lock); cursor: default; }
+.level-node.locked svg { width: 56px; height: 56px; }
+.level-node.unlocked { animation: nodePulse 1.8s var(--ease-soft) infinite; }
+.level-node.stars-1, .level-node.stars-2, .level-node.stars-3 { animation: none; }
+@keyframes nodePulse {
+  0%,100% { box-shadow: var(--sh-1), 0 0 0 0 var(--world-primary); }
+  50%     { box-shadow: var(--sh-1), 0 0 0 16px transparent; }
+}
+.node-ribbon {
+  position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px;
+  background: var(--ink); padding: 2px 6px; border-radius: var(--r-pill);
+}
+.node-ribbon svg { width: 18px; height: 18px; }
+
+/* ===== TASK 26: Addition Level Screen ===== */
+#screen-add, #screen-sub {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 82%, #fff) 0%, var(--world-sky) 68%, color-mix(in srgb, var(--world-ground) 55%, var(--world-sky) 45%) 100%);
+  padding: 0;
+}
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 72px;
+  display: flex; align-items: center; gap: 24px;
+  padding: 16px 32px;
+}
+.topbar .star-meter.run { margin-left: auto; }
+.home-btn.small {
+  position: static;   /* opt out of absolute positioning from base .home-btn */
+  top: auto;
+  left: auto;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+}
+.home-btn.small svg { width: 100%; height: 100%; }
+.progress-dots { display: flex; gap: 8px; }
+.dot { width: 16px; height: 16px; border-radius: 50%; background: var(--bg-card); border: 3px solid var(--ink); }
+.dot.current { background: var(--world-primary); }
+.dot.filled  { background: var(--success); }
+.star-meter.run { font-size: 24px; font-family: 'Nunito', sans-serif; font-weight: 900; }
+
+.worksheet {
+  position: absolute; left: 380px; top: 100px; width: 520px; height: 540px;
+  display: grid; grid-template-rows: auto auto auto 6px auto;
+  gap: 16px;
+  justify-content: center; align-content: start;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+}
+.worksheet .row { display: flex; gap: 16px; justify-content: flex-end; }
+.worksheet .row.top { position: relative; }
+.worksheet .row.bot .op { font-size: 96px; line-height: 120px; width: 60px; text-align: center; }
+.worksheet .cell { width: 100px; height: 120px; font-size: 96px; line-height: 120px; text-align: center; position: relative; }
+.worksheet .cell.empty { opacity: 0; }
+.worksheet .line { background: var(--ink); height: 6px; border-radius: 3px; margin: 0 0 0 76px; max-width: 232px; }
+.worksheet .row.ans { gap: 16px; justify-content: flex-end; }
+.carry-slot.hidden { display: none; }
+
+/* Compound tiles (10-18): same box as single digits, smaller font to fit 2 chars */
+.tile.compound {
+  width: 96px;
+  height: 96px;
+  font-size: 56px;
+}
+/* Smaller compound variant used by multiplication answer options — many
+   more tiles need to fit in the tray (11–16 in a row vs. 5 for addition). */
+.tile.compound.mult-option {
+  width: 76px;
+  height: 76px;
+  font-size: 44px;
+}
+
+/* Two-row tray when compound tiles are present */
+.digit-tray.two-row {
+  height: 232px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  align-items: center;
+  justify-content: center;
+}
+.digit-tray .tile-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Raise corner mascot when tray has two rows */
+#screen-add.two-row-active .corner-mascot {
+  bottom: 280px;
+}
+
+.digit-tray {
+  position: absolute; bottom: 20px; left: 80px; width: 1120px; height: 120px;
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+}
+
+.corner-mascot {
+  position: absolute; bottom: 160px; right: 32px; width: 180px; height: 180px;
+  pointer-events: none;
+}
+.corner-mascot svg { width: 100%; height: 100%; }
+
+/* ===== TASK 28: Multiplication Tap-Count Level Screen ===== */
+#screen-mult-tap, #screen-mult-drag { background: linear-gradient(180deg, color-mix(in srgb, var(--world-sky) 82%, #fff), var(--world-sky)); }
+.mult-problem {
+  position: absolute; top: 100px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 16px; align-items: center;
+  font-family: 'Fredoka', 'Lilita One', system-ui, sans-serif;
+  font-weight: 700;
+}
+.op-chip {
+  width: 120px; height: 130px; background: var(--bg-card);
+  border: 4px solid var(--ink); border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 96px; box-shadow: var(--sh-2);
+}
+.op-chip.q { border-style: dashed; background: transparent; animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.op-sym { font-size: 80px; color: var(--ink); }
+.firefly-area {
+  position: absolute; top: 240px; left: 80px; width: 1120px; height: 260px;
+  display: flex; gap: 40px; justify-content: center; align-items: center;
+}
+/* Lily-pads must NOT shrink when there are 4 groups (L3 of mult-tap) — keep
+   them at a fixed 240×240 so the ellipse stays roughly circular and there
+   is room to arrange up to 5 fireflies inside. */
+.lily-group { position: relative; width: 240px; height: 240px; flex-shrink: 0; }
+.lily-group svg.lilypad { position: absolute; inset: 0; }
+/* Fireflies are arranged inside the lily-pad ellipse. With the lily-group
+   at 240×240, the ellipse is roughly 225 wide × 206 tall. We pick a
+   per-count layout that keeps every firefly visually inside the curve. */
+.block-grid {
+  position: absolute; inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center; align-items: center;
+  gap: 10px;
+}
+.block-grid .block-host { width: 72px; height: 72px; }
+
+.block-grid[data-count="1"] { grid-template-columns: 72px; }
+.block-grid[data-count="2"] { grid-template-columns: repeat(2, 72px); }
+
+/* 3 fireflies in a 1-top / 2-bottom triangle so they sit comfortably
+   inside the ellipse instead of poking out the sides of a 3-wide row. */
+.block-grid[data-count="3"] {
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+}
+.block-grid[data-count="3"] > :nth-child(1) { grid-column: 1 / span 2; grid-row: 1; }
+.block-grid[data-count="3"] > :nth-child(2) { grid-column: 1; grid-row: 2; }
+.block-grid[data-count="3"] > :nth-child(3) { grid-column: 2; grid-row: 2; }
+
+.block-grid[data-count="4"] {
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+}
+
+/* 5 fireflies in a 3-on-top / 2-on-bottom pyramid. The 3-wide top row
+   only fits inside the ellipse at a smaller firefly size. */
+.block-grid[data-count="5"] {
+  grid-template-columns: repeat(6, 28px);
+  grid-template-rows: repeat(2, 56px);
+  gap: 4px;
+}
+.block-grid[data-count="5"] .block-host { width: 56px; height: 56px; }
+.block-grid[data-count="5"] > :nth-child(1) { grid-column: 1 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(2) { grid-column: 3 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(3) { grid-column: 5 / span 2; grid-row: 1; }
+.block-grid[data-count="5"] > :nth-child(4) { grid-column: 2 / span 2; grid-row: 2; }
+.block-grid[data-count="5"] > :nth-child(5) { grid-column: 4 / span 2; grid-row: 2; }
+.total-reveal {
+  position: absolute; top: 520px; left: 50%; transform: translateX(-50%);
+  width: 380px; height: 120px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  box-shadow: var(--sh-2);
+  padding: 0 24px;
+}
+.total-reveal.hidden { display: none; }
+.total-reveal .display { font-size: 32px; }
+/* The single mult answer slot holds a 1- OR 2-digit answer (e.g. "20"), so size
+   it to fit two digits without overflow — roomy but not oversized. Shared by the
+   tap-count TOTAL box and the drag-groups answer box (the latter otherwise falls
+   through to the base .slot whose 110px font clips two-digit answers). */
+.total-reveal .slot,
+.ans-host .slot {
+  width: 104px; height: 104px;
+  font-size: 60px;
+  border-radius: var(--r-md);
+}
+/* "HOW MANY TOTAL?" was rendering at the default ~16px — bump it up to read clearly. */
+.ans-host .display { font-size: 30px; }
+.ans-slot-host { display: flex; gap: 8px; }
+
+/* ===== TASK 29: Multiplication Drag-Groups Level Screen ===== */
+/* Wrapper around the counting trays + mango pile. Landscape: transparent, so
+   the children keep their original absolute layout. Portrait: see the portrait
+   section, where it becomes a centred flex column the layout engine fits. */
+.play-col { display: contents; }
+.group-row {
+  position: absolute; top: 220px; left: 100px; width: 1080px;
+  display: flex; gap: 60px; justify-content: center;
+}
+.group-tray {
+  position: relative;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; justify-content: center;
+  background: var(--bg-card);
+  border: 4px solid var(--ink);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  min-width: 100px; min-height: 100px;
+  box-shadow: var(--sh-1);
+  transition: border-color 0.2s, background 0.2s;
+}
+.group-tray.full {
+  border-color: var(--success-deep);
+  background: var(--star-glow);
+}
+/* Scoped to mult-drag group trays so it doesn't accidentally match
+   `.btn.ghost` buttons elsewhere (settings RESET PROGRESS/CLOSE, complete
+   screen AGAIN/MAP). Those need the full .btn box, not a tiny dashed slot. */
+.group-tray .ghost {
+  width: 56px; height: 56px;
+  border-radius: var(--r-sm);
+  border: 3px dashed var(--ink-soft);
+  background: transparent;
+  opacity: 0.4;
+}
+.count-chip {
+  position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg-paper);
+  font-family: 'Lilita One', system-ui; font-size: 18px;
+  padding: 2px 10px; border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+#screen-mult-drag .block-host {
+  width: 56px; height: 56px;
+  cursor: grab;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+#screen-mult-drag .block-host.dragging { cursor: grabbing; z-index: 200; }
+#screen-mult-drag .block-host svg { width: 100%; height: 100%; }
+.block-pile {
+  position: absolute; top: 540px; left: 100px; width: 1080px; height: 160px;
+  display: flex; flex-wrap: wrap; gap: 12px;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  padding: 24px; align-items: center; justify-content: center;
+}
+.ans-host {
+  position: absolute; top: 390px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 16px; align-items: center;
+  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
+  padding: 16px 24px; box-shadow: var(--sh-2);
+}
+.ans-host.hidden { display: none; }
+.digit-tray.hidden { display: none; }
+
+/* ===== TASK 30: Complete Screen ===== */
+#screen-complete { background: radial-gradient(100% 70% at 50% 0%, color-mix(in srgb, var(--world-sky) 55%, #fff), var(--world-sky)); }
+.complete-title {
+  position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+  font-size: 80px; text-shadow: 0 4px 0 var(--world-primary);
+  margin: 0;
+}
+#screen-complete .star-meter.big {
+  position: absolute; top: 170px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 32px;
+}
+.complete-mascot {
+  position: absolute; top: 310px; left: 50%; transform: translateX(-50%);
+  width: 220px; height: 220px;
+}
+.complete-mascot svg { width: 100%; height: 100%; }
+.complete-buttons {
+  position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 28px;
+}
+.confetti-host { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+/* ===== TASK 33: Settings Panel with Parent Gate ===== */
+#screen-settings { background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; }
+.parent-gate-card, .settings-card {
+  background: var(--bg-card);
+  border: 5px solid var(--ink);
+  border-radius: var(--r-lg);
+  padding: 48px 64px; text-align: center;
+  min-width: 600px; box-shadow: var(--sh-3);
+}
+.parent-gate-card h2, .settings-card h2 { font-size: 48px; margin: 0 0 24px; }
+.parent-gate-card p { font-size: 28px; margin: 0 0 24px; font-weight: 700; }
+.pg-buttons { display: flex; gap: 16px; justify-content: center; }
+.pg-buttons .btn { min-width: 120px; height: 90px; font-size: 48px; }
+.pg-error { margin-top: 16px; color: var(--gentle-no); font-weight: 900; }
+.pg-error.hidden { display: none; }
+.settings-card .btn { display: block; margin: 16px auto; min-width: 400px; }
+
+/* ===== PORTRAIT REFLOW ===== */
+
+#stage[data-orient="portrait"] .splash-title {
+  top: 96px;
+  font-size: 76px;
+  letter-spacing: 1px;
+}
+/* Centre the hero mascot in the canvas (was pinned near the top, leaving a big
+   empty void below). Bigger, too, so it fills the space and the screen reads
+   as balanced: title up top, mascot in the middle, play button at the bottom. */
+#stage[data-orient="portrait"] .splash-mascot {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 384px;
+  height: 384px;
+}
+#stage[data-orient="portrait"] .splash-play {
+  bottom: 150px;
+}
+#stage[data-orient="portrait"] .splash-play.btn.pill {
+  min-width: 360px;
+  height: 110px;
+  font-size: 44px;
+}
+#stage[data-orient="portrait"] .cog-corner {
+  top: 24px;
+  right: 24px;
+  /* Tight padding when the label is hidden — just the icon stays. */
+  padding: 6px;
+}
+/* In portrait the "PARENTS" label is dropped — the icon alone fits without
+   colliding with the title or the mascot. Parents who know the gate is
+   long-press on the cog will still find it. */
+#stage[data-orient="portrait"] .cog-corner .cog-label {
+  display: none;
+}
+#stage[data-orient="portrait"] .cog-corner svg {
+  width: 44px;
+  height: 44px;
+}
+
+#stage[data-orient="portrait"] .world-grid {
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  padding: 92px 20px 24px;
+  gap: 20px;
+}
+#stage[data-orient="portrait"] .world-panel {
+  padding: 14px 16px;
+}
+#stage[data-orient="portrait"] .world-title {
+  font-size: 28px;
+  margin: 0 0 10px;
+}
+#stage[data-orient="portrait"] .level-path {
+  /* Bigger nodes with more generous gaps so each panel feels open and the
+     level buttons are easy targets for little fingers, rather than a tight
+     cluster lost in the middle of the panel. */
+  grid-template-columns: repeat(3, 96px);
+  grid-template-rows: repeat(2, 96px);
+  gap: 16px 28px;
+  height: calc(100% - 42px);
+  align-content: center;
+  justify-content: center;
+}
+#stage[data-orient="portrait"] .level-node {
+  width: 96px;
+  height: 96px;
+  font-size: 42px;
+  border-width: 4px;
+}
+#stage[data-orient="portrait"] .level-node.locked svg {
+  width: 40px;
+  height: 40px;
+}
+#stage[data-orient="portrait"] .home-btn {
+  top: 20px;
+  left: 20px;
+  width: 64px;
+  height: 64px;
+}
+#stage[data-orient="portrait"] .star-meter.total {
+  top: 28px;
+  right: 20px;
+  font-size: 22px;
+}
+#stage[data-orient="portrait"] .star-meter.total svg.star {
+  width: 26px;
+  height: 26px;
+}
+
+#stage[data-orient="portrait"] .worksheet {
+  left: 50%;
+  /* Vertically centered between topbar and tray. Centring (not a fixed top)
+     means the worksheet sits in the middle of the canvas at any phone
+     aspect ratio — iPhone SE, iPhone 14, Pixel 7 all look balanced. */
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: auto;
+}
+/* Carry slot fallback positioning for portrait — JS in add.js fine-tunes
+   via requestAnimationFrame, but a sane default keeps the slot above the
+   tens column before/if RAF has fired. */
+#stage[data-orient="portrait"] .carry-slot {
+  top: -80px;
+  left: 0;
+}
+
+/* Digit tray: always wrap into 2 rows of 5 in portrait so tiles can be larger */
+#stage[data-orient="portrait"] .digit-tray:not(.two-row) {
+  left: 16px;
+  right: 16px;
+  width: auto;
+  bottom: 16px;
+  height: auto;
+  flex-wrap: wrap;
+  padding: 10px;
+  gap: 8px;
+  align-content: center;
+  justify-content: center;
+}
+
+/* Carry-mode tray (single-digit row 1 + compound row 2) — both rows compress */
+#stage[data-orient="portrait"] .digit-tray.two-row {
+  left: 16px;
+  right: 16px;
+  width: auto;
+  bottom: 16px;
+  height: auto;
+  padding: 10px;
+  gap: 6px;
+}
+#stage[data-orient="portrait"] .digit-tray.two-row .tile-row {
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+#stage[data-orient="portrait"] .corner-mascot {
+  top: 78px;
+  right: 12px;
+  bottom: auto;
+  /* ~1.4× bigger so the buddy reads clearly on a phone. Sits top-right, clear
+     of the centred equation (which spans ~200–520 of the 720 canvas). */
+  width: 168px;
+  height: 168px;
+}
+#stage[data-orient="portrait"] #screen-add.two-row-active .corner-mascot,
+#stage[data-orient="portrait"] #screen-sub.two-row-active .corner-mascot {
+  top: 84px;
+  bottom: auto;
+}
+
+/* All tile choices the kid picks from are the same dimensions in portrait,
+   regardless of variant. 5-across at 110×96 + 8px gap = 582 fits in a
+   656-wide tray; rows wrap naturally when there are more than 5 tiles
+   (carry's 10 digits + 9 compounds, or mult-tap's 10-25 option range).
+   At iPhone SE scale 0.444: 110 * 0.444 = ~49 physical → meets 44pt. */
+#stage[data-orient="portrait"] .tile,
+#stage[data-orient="portrait"] .tile.compound,
+#stage[data-orient="portrait"] .tile.compound.mult-option {
+  width: 110px;
+  height: 96px;
+  font-size: 56px;
+  border-width: 3px;
+}
+/* Two-digit values (10-18, etc.) need a smaller font to fit the tile width
+   without changing the box. Keep digits visually centered with the rest. */
+#stage[data-orient="portrait"] .tile.compound,
+#stage[data-orient="portrait"] .tile.compound.mult-option {
+  font-size: 48px;
+}
+#stage[data-orient="portrait"] .slot {
+  width: 120px;
+  height: 150px;
+  font-size: 110px;
+  border-width: 3px;
+}
+
+/* Worksheet cells — larger in portrait to give the math problem visual weight
+   and use the available vertical space between topbar and tray. */
+#stage[data-orient="portrait"] .worksheet .cell,
+#stage[data-orient="portrait"] .worksheet .row.bot .op {
+  width: 120px;
+  height: 150px;
+  font-size: 110px;
+  line-height: 150px;
+}
+#stage[data-orient="portrait"] .worksheet .line {
+  margin-left: 92px;
+  max-width: 272px;
+}
+
+/* Topbar stays full-width but with smaller padding */
+#stage[data-orient="portrait"] .topbar {
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+#stage[data-orient="portrait"] .mult-problem {
+  top: 90px;
+  gap: 8px;
+}
+#stage[data-orient="portrait"] .op-chip {
+  width: 80px;
+  height: 90px;
+  font-size: 64px;
+  border-width: 3px;
+}
+#stage[data-orient="portrait"] .op-sym {
+  font-size: 54px;
+}
+#stage[data-orient="portrait"] .firefly-area {
+  /* Wrap lily-pads into a 2-wide grid so 3–4 groups stay compact instead of a
+     tall single column. The layout engine re-centres this and scales to fit. */
+  flex-flow: row wrap;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 432px;
+  height: auto;
+  gap: 14px 12px;
+  justify-content: center;
+  align-content: center;
+}
+#stage[data-orient="portrait"] .lily-group {
+  width: 200px;
+  height: 180px;
+}
+#stage[data-orient="portrait"] .block-grid .block-host {
+  width: 60px;
+  height: 60px;
+}
+#stage[data-orient="portrait"] .block-grid[data-count="5"] .block-host {
+  width: 46px;
+  height: 46px;
+}
+#stage[data-orient="portrait"] .total-reveal {
+  top: auto;
+  /* Sits clearly above the digit tray (tray bottom-anchored at 16, height ~240). */
+  bottom: 290px;
+  width: 296px;
+  height: 116px;
+  padding: 0 16px;
+}
+#stage[data-orient="portrait"] .total-reveal .slot,
+#stage[data-orient="portrait"] .ans-host .slot {
+  width: 96px;
+  height: 96px;
+  font-size: 56px;
+}
+#stage[data-orient="portrait"] .ans-host .display {
+  font-size: 27px;
+}
+/* Portrait: trays + pile live inside .play-col, which the layout engine centres
+   in the band between the problem and the answer box (and scales down to fit
+   short phones). They flow in-column here rather than being absolutely pinned. */
+#stage[data-orient="portrait"] .play-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: calc(100% - 32px);
+}
+#stage[data-orient="portrait"] .group-row {
+  position: static;
+  top: auto; left: auto; right: auto;
+  transform: none;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+}
+#stage[data-orient="portrait"] .group-tray {
+  min-width: 0;
+  width: 100%;
+  flex-direction: row;
+  padding: 10px;
+  gap: 6px;
+  min-height: 70px;
+}
+#stage[data-orient="portrait"] .group-tray .ghost {
+  width: 48px;
+  height: 48px;
+}
+#stage[data-orient="portrait"] #screen-mult-drag .block-host {
+  width: 48px;
+  height: 48px;
+}
+/* Mult-drag portrait stacking (top→bottom): topbar, problem, group trays,
+   pile, answer host, digit tray. All visible at once per the simplified flow
+   in mult-drag.js (kid can answer immediately; pile is for counting only).
+   Block-pile is centred vertically and answer host is anchored above the
+   tray so they distribute evenly on any phone height. */
+#stage[data-orient="portrait"] .block-pile {
+  position: static;
+  top: auto; bottom: auto; left: auto; right: auto;
+  transform: none;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 12px;
+  gap: 8px;
+}
+#stage[data-orient="portrait"] .ans-host {
+  /* Sits clearly above the digit tray. Mult answers can include compound
+     tiles that wrap to 3 rows in the tray, so allow ~360px for the tray
+     plus a 24px gap. */
+  top: auto;
+  bottom: 384px;
+  padding: 10px 16px;
+}
+#stage[data-orient="portrait"] .count-chip {
+  font-size: 14px;
+  padding: 1px 8px;
+  bottom: -14px;
+}
+#stage[data-orient="portrait"] .complete-title {
+  top: 60px;
+  font-size: 60px;
+}
+#stage[data-orient="portrait"] #screen-complete .star-meter.big {
+  top: 160px;
+  gap: 16px;
+}
+#stage[data-orient="portrait"] .star-meter.big .star {
+  width: 76px;
+  height: 76px;
+}
+#stage[data-orient="portrait"] .complete-mascot {
+  /* Vertically centred between the star meter (top) and the buttons (bottom),
+     adapts to any phone height. Enlarged to fill the celebration space. */
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 232px;
+  height: 232px;
+}
+#stage[data-orient="portrait"] .complete-buttons {
+  flex-direction: column;
+  bottom: 40px;
+  gap: 12px;
+  width: 90%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#stage[data-orient="portrait"] .complete-buttons .btn {
+  /* Force all 3 buttons (ghost + success + ghost) to the same width.
+     Without this, flex column with align-items:normal stretches success
+     to fill the parent while min-width holds the ghosts at their floor,
+     producing wildly mismatched widths. */
+  width: 100%;
+  min-width: 0;
+  height: 80px;
+  font-size: 28px;
+}
+#stage[data-orient="portrait"] .parent-gate-card,
+#stage[data-orient="portrait"] .settings-card {
+  min-width: 0;
+  width: min(560px, 92%);
+  padding: 32px 24px;
+}
+#stage[data-orient="portrait"] .parent-gate-card h2,
+#stage[data-orient="portrait"] .settings-card h2 {
+  font-size: 36px;
+  margin: 0 0 16px;
+}
+#stage[data-orient="portrait"] .parent-gate-card p {
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+#stage[data-orient="portrait"] .pg-buttons .btn {
+  min-width: 80px;
+  height: 70px;
+  font-size: 36px;
+}
+#stage[data-orient="portrait"] .settings-card .btn {
+  min-width: 280px;
+}

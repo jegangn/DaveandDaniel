@@ -1,0 +1,16 @@
+{
+  "name": "jhanavs-math-quest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun ./dev.js",
+    "test": "bun test",
+    "build": "bun build.js",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "esbuild": "^0.28.0"
+  }
+}
