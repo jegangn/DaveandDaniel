@@ -764,6 +764,11 @@ export function animateBorrowChain(sec, steps) {
       const s = steps[i++];
       const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
       if (cell) {
+        // A digit can regroup twice: lent-from by a lower column (6→5), then
+        // borrowed-into for itself (5→15). Clear any prior strike + mark first
+        // so the column shows only its latest value — never two stacked at once.
+        cell.querySelectorAll(".strike, .regroup-mark").forEach((el) => el.remove());
+
         const strike = document.createElement("div");
         strike.className = "strike";
         const svg = document.createElementNS(SVG_NS, "svg");
