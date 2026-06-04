@@ -77,8 +77,8 @@ export function mount(stage, ctx, router) {
   function startProblem() {
     const p = problems[idx];
     info = analyzeShortDiv(p.a, p.b);
-    N = info.steps.length; // dividend digit count
-    activeState = createAnswerStateN(Number(info.quotientDigits.join("")), "ltr");
+    N = info.steps.length; // total columns: integer digits + brought-down decimal zeros
+    activeState = createAnswerStateN(info.quotientIntDigits.concat(info.quotientDecDigits), "ltr");
     sec.dataset.problem = `${p.a}÷${p.b}`;
     renderWorksheet();
   }
@@ -86,24 +86,39 @@ export function mount(stage, ctx, router) {
   function renderWorksheet() {
     const p = problems[idx];
     const ws = sec.querySelector(".col-ws");
-    ws.style.gridTemplateColumns = `64px repeat(${N}, var(--col-w)) 110px`;
+    const nInt = info.intDigits.length;
+    const nDec = info.decimalPlaces;
 
-    // Quotient row: blank divisor col, N quotient slots, blank remainder col.
+    // Columns: divisor | integer digits | decimal point | decimal digits.
+    ws.style.gridTemplateColumns =
+      `64px repeat(${nInt}, var(--col-w)) var(--point-w) repeat(${nDec}, var(--col-w))`;
+
+    // Quotient row: blank divisor col, integer slots, point cell, decimal slots.
     let q = `<div class="ws-op"></div>`;
-    for (let c = 0; c < N; c++) {
-      const cls = c === activeState.activeIndex ? "slot active" : "slot inactive";
-      q += `<div class="${cls}" data-index="${c}"></div>`;
+    for (let c = 0; c < nInt; c++) {
+      q += `<div class="slot ${c === activeState.activeIndex ? "active" : "inactive"}" data-index="${c}"></div>`;
     }
-    q += `<div class="cell"></div>`;
+    q += `<div class="cell div-point">.</div>`;
+    for (let k = 0; k < nDec; k++) {
+      const i = nInt + k;
+      q += `<div class="slot ${i === activeState.activeIndex ? "active" : "inactive"}" data-index="${i}"></div>`;
+    }
 
-    // Dividend row: divisor, bracket + dividend digits (with carry superscripts), remainder.
+    // Dividend row: divisor, integer digits (carry sups), point, brought-down zeros (carry sups).
     let d = `<div class="cell div-divisor">${p.b}</div>`;
-    for (let c = 0; c < N; c++) {
+    for (let c = 0; c < nInt; c++) {
       const carryIn = info.steps[c].carryIn;
       const sup = (c > 0 && carryIn > 0) ? `<span class="div-carry" data-col="${c}">${carryIn}</span>` : "";
       d += `<div class="cell div-dividend${c === 0 ? " first" : ""}">${sup}${info.steps[c].digit}</div>`;
     }
-    d += `<div class="cell div-rem"></div>`;
+    d += `<div class="cell div-dividend div-point div-muted">.</div>`;
+    for (let k = 0; k < nDec; k++) {
+      const i = nInt + k;
+      const carryIn = info.steps[i].carryIn;
+      const sup = carryIn > 0 ? `<span class="div-carry" data-col="${i}">${carryIn}</span>` : "";
+      d += `<div class="cell div-dividend div-muted">${sup}0</div>`;
+    }
+
     ws.innerHTML = `${q}${d}`;
     relayout();
   }
@@ -156,11 +171,6 @@ export function mount(stage, ctx, router) {
         }
 
         if (isComplete(activeState)) {
-          const rem = sec.querySelector(".div-rem");
-          if (rem) {
-            rem.textContent = `r ${info.remainder}`;
-            rem.classList.add("show");
-          }
           sfx.correctYay();
           await advanceProblem();
         } else {
