@@ -71,6 +71,13 @@ test("createAnswerStateN (ltr) + dropDigitLTR fills left-to-right (division quot
   expect(s.activeIndex).toBe(-1);
 });
 
+test("createAnswerStateN accepts an explicit digit array (decimal quotient)", () => {
+  const s = createAnswerStateN([1, 5, 2, 8], "ltr");
+  expect(s.expected).toEqual([1, 5, 2, 8]);
+  expect(s.slots).toEqual([null, null, null, null]);
+  expect(s.activeIndex).toBe(0);
+});
+
 // ===== 3.2 column add / sub analysis (carry & borrow chains) ===============
 
 test("analyzeColumnsAdd: carries flagged per column (RTL, index 0 = ones)", () => {

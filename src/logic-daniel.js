@@ -19,7 +19,7 @@ export const digitsOfN = (n) => String(n).split("").map(Number);
 // Answer state for column entry. dir "rtl" (add/sub/mult) starts at the ones;
 // dir "ltr" (division quotient) starts at the most-significant digit.
 export function createAnswerStateN(answer, dir = "rtl") {
-  const expected = digitsOfN(answer);
+  const expected = Array.isArray(answer) ? answer.slice() : digitsOfN(answer);
   return {
     expected,
     slots: expected.map(() => null),
