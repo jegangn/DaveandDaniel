@@ -1418,7 +1418,7 @@ button {
 #stage[data-orient="portrait"] .lm-ws .slot { height: 70px; font-size: 50px; line-height: 70px; }
 
 /* ----- Short (bus-stop) division ------------------------------------- */
-.div-ws { --col-w: 88px; top: 150px; gap: 6px 4px; }
+.div-ws { --col-w: 88px; --point-w: 34px; top: 150px; gap: 6px 4px; }
 .div-ws .cell,
 .div-ws .slot { height: 100px; font-size: 72px; line-height: 100px; }
 /* The bus-stop bracket: a line over the dividend + a vertical bar at its left. */
@@ -1431,13 +1431,10 @@ button {
   opacity: 0; pointer-events: none;
 }
 .div-carry.show { opacity: 1; }
-.div-rem {
-  display: flex; align-items: center; justify-content: flex-start; padding-left: 8px;
-  font-size: 52px; color: var(--ink-soft); opacity: 0; white-space: nowrap;
-  transition: opacity .3s var(--ease-pop);
-}
-.div-rem.show { opacity: 1; }
-#stage[data-orient="portrait"] .div-ws { --col-w: 74px; top: 50%; }
+/* Auto-placed decimal point (both rows) + the brought-down decimal zeros, shown muted. */
+.div-point { text-align: center; }
+.div-ws .div-muted { color: var(--ink-soft); }
+#stage[data-orient="portrait"] .div-ws { --col-w: 74px; --point-w: 28px; top: 50%; }
 #stage[data-orient="portrait"] .div-ws .cell,
 #stage[data-orient="portrait"] .div-ws .slot { height: 84px; font-size: 60px; line-height: 84px; }
 
