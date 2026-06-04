@@ -165,6 +165,16 @@ test("analyzeShortDiv: 2-digit ÷ 2 → one decimal place (47 ÷ 2 = 23.5)", () 
   expect(r.steps.filter((s) => s.decimal).length).toBe(1);
 });
 
+test("analyzeShortDiv: exact division → no decimal digits, integer answer (618 ÷ 6 = 103)", () => {
+  const r = analyzeShortDiv(618, 6);
+  expect(r.quotientIntDigits).toEqual([1, 0, 3]);
+  expect(r.quotientDecDigits).toEqual([]);
+  expect(r.decimalPlaces).toBe(0);
+  expect(r.answer).toBe(103);
+  expect(r.remainder).toBe(0);
+  expect(r.steps.every((s) => s.decimal === false)).toBe(true);
+});
+
 // ===== 3.4 band generators =================================================
 
 test("getProblemsDaniel: every mission yields exactly 5 problems", () => {

@@ -173,7 +173,7 @@ export function analyzeShortDiv(dividend, divisor) {
     quotientIntDigits,
     quotientDecDigits,
     steps,
-    remainder: carry,
+    remainder: carry, // 0 for all generated problems (2/4/5 divisors terminate within MAX_PLACES)
     answer,
   };
 }
