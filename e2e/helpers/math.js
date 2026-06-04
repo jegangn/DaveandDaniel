@@ -73,9 +73,16 @@ export async function goToLevel(page, world, level, profile = "dave") {
  * Uses mouse events with 8 steps — matches Chromium pointer dispatch.
  */
 export async function dragDigitToSlot(page, digit, slotLocator) {
+  // After a correct drop the game runs a ~380ms snap-in, then re-activates the
+  // next slot and rebuilds the tray in one synchronous block — during which all
+  // slots are briefly inactive and the tray tiles are detached. The previous
+  // drag only waits 350ms, so wait for the target slot (and tile) to settle
+  // here before measuring, otherwise boundingBox() can return null mid-flux.
+  await slotLocator.first().waitFor({ state: "visible" });
   const tile = page.locator(`.tile[data-digit="${digit}"]`).first();
+  await tile.waitFor({ state: "visible" });
   const tBox = await tile.boundingBox();
-  const sBox = await slotLocator.boundingBox();
+  const sBox = await slotLocator.first().boundingBox();
   await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });

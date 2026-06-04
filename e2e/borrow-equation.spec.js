@@ -1,40 +1,38 @@
 import { test, expect } from '@playwright/test';
-import { unlockAll } from './helpers/math.js';
+import { goToLevel } from './helpers/math.js';
 
-test('borrow: 10 + 4 equation is briefly visible before ones digit becomes 14', async ({ page }) => {
+// Navigate straight to Dave's Sub L3 (problem 1 = 22-7: ones-top 2, borrow makes
+// it read as 12 via a "10 + 2" reveal then a "1" carry mark beside the "2").
+
+test('borrow: 10 + 2 equation is briefly visible before the ones regroup mark appears', async ({ page }) => {
   test.setTimeout(20_000);
-  await page.goto('/');
-  await unlockAll(page);
-  await page.goto('/');
-  await page.locator('.splash-play').click();
-  // Sub L4 problem 1 is 32-15: ones-top is 2, borrow makes it 12.
-  // Or sub L3 problem 1: 22-7 — ones-top is 2 → 12 after borrow.
-  // Either way the "+" reveal applies. Use L3.
-  await page.locator('.world-panel').nth(1).locator('.level-node[data-level="3"]').click();
+  await page.goto('/?profile=dave');
+  await goToLevel(page, 'sub', 3);
+  await expect(page.locator('#screen-sub')).toBeVisible({ timeout: 5000 });
 
-  // Wait until the chip has finished its drop and the "+" should be visible:
-  // Phase A ends ~1300ms, held 300ms, Phase B 1300ms → "+" appears ~2900ms in.
-  await page.waitForTimeout(3200);
+  // The "+" of the "10 + 2" equation fades in once the chip finishes its drop
+  // (~4s into the animation). Wait for it rather than guessing a fixed delay.
+  await page.waitForSelector('.borrow-plus', { timeout: 8000 });
 
   // The "+" sign should be on screen
   const plus = page.locator('.borrow-plus');
   await expect(plus).toBeVisible();
   expect((await plus.textContent()).trim()).toBe('+');
 
-  // The "10" chip should still be visible (to the left of the ones cell)
+  // The "10" chip should still be visible (above the ones cell)
   const chip = page.locator('.borrow-chip');
   await expect(chip).toBeVisible();
   expect((await chip.textContent()).trim()).toBe('10');
 
-  // The ones cell should STILL show the original ones digit, not the regrouped one
+  // The ones cell should STILL show the original ones digit. The regrouped value
+  // is revealed LATER as a separate carry mark, not by rewriting the cell, so at
+  // this point the carry mark does not exist yet.
   const onesCell = page.locator('.worksheet .row.top .cell:nth-child(2)');
-  const onesText = (await onesCell.textContent()).trim();
-  expect(onesText.length).toBe(1); // still single digit ("2"), not "12" yet
+  expect((await onesCell.textContent()).trim()).toBe('2');
+  await expect(page.locator('.borrow-carry')).toHaveCount(0);
 
-  // Visual sanity: chip is above the plus, and the plus is above the
-  // visible digit. The plus may overlap the cell's whitespace area since
-  // the digit itself is centered in the cell with ~26px of empty space
-  // at the top.
+  // Visual sanity: chip is above the plus, and the plus is above the visible
+  // digit (the digit is centred in the cell with empty space above it).
   const chipBox = await chip.boundingBox();
   const plusBox = await plus.boundingBox();
   const onesBox = await onesCell.boundingBox();
@@ -47,40 +45,46 @@ test('borrow: 10 + 4 equation is briefly visible before ones digit becomes 14', 
   const onesCenterX = onesBox.x + onesBox.width / 2;
   expect(Math.abs(chipCenterX - onesCenterX)).toBeLessThan(40);
 
-  // The new tens "1" (.borrow-replacement) should be centered above the tens cell
-  const newTens = page.locator('.borrow-replacement');
+  // The new tens "1" (.borrow-replacement) annotates the UPPER-LEFT of the tens
+  // cell — teacher's regroup notation — so its centre sits left of the tens-cell
+  // centre, near the cell's left edge (NOT centred over the cell).
+  const newTens = page.locator('.borrow-replacement').first();
   await expect(newTens).toBeVisible();
   const newTensBox = await newTens.boundingBox();
   const tensCell = page.locator('.worksheet .row.top .cell:nth-child(1)');
   const tensBox = await tensCell.boundingBox();
   const newTensCenterX = newTensBox.x + newTensBox.width / 2;
-  const tensCenterX = tensBox.x + tensBox.width / 2;
-  expect(Math.abs(newTensCenterX - tensCenterX)).toBeLessThan(8);
+  expect(newTensCenterX).toBeLessThan(tensBox.x + tensBox.width / 2);   // left of centre
+  expect(Math.abs(newTensCenterX - tensBox.x)).toBeLessThan(40);        // near the left edge
 
   await page.screenshot({ path: 'test-results/borrow-equation.png' });
 });
 
-test('borrow: by the end of the animation the ones cell shows the regrouped value', async ({ page }) => {
+test('borrow: by the end of the animation the ones column shows the regrouped value', async ({ page }) => {
   test.setTimeout(15_000);
-  await page.goto('/');
-  await unlockAll(page);
-  await page.goto('/');
-  await page.locator('.splash-play').click();
-  await page.locator('.world-panel').nth(1).locator('.level-node[data-level="3"]').click();
+  await page.goto('/?profile=dave');
+  await goToLevel(page, 'sub', 3);
+  await expect(page.locator('#screen-sub')).toBeVisible({ timeout: 5000 });
 
-  await page.waitForFunction(() => {
-    const cell = document.querySelector('.worksheet .row.top .cell:nth-child(2)');
-    return cell && cell.textContent.trim().length === 2;
-  }, { timeout: 10000 });
-
-  // Wait for the final fade-in + cleanup
-  await page.waitForTimeout(800);
+  // The regroup mark ("1") fades in next to the ones digit near the end.
+  await page.waitForSelector('.borrow-carry', { timeout: 10000 });
+  await page.waitForTimeout(900); // let the chip + plus finish fading out
 
   // Chip and plus should both be gone
   expect(await page.locator('.borrow-chip').count()).toBe(0);
   expect(await page.locator('.borrow-plus').count()).toBe(0);
 
-  // Ones cell shows the new regrouped digit
-  const onesText = (await page.locator('.worksheet .row.top .cell:nth-child(2)').textContent()).trim();
-  expect(onesText).toBe('12'); // for 22-7: ones 2 + 10 = 12
+  // The ones cell keeps its original digit "2"; the regrouped value is shown by
+  // a separate carry mark "1" to its left, so the column reads "12" (2 + 10).
+  const onesCell = page.locator('.worksheet .row.top .cell:nth-child(2)');
+  expect((await onesCell.textContent()).trim()).toBe('2');
+  const carry = page.locator('.borrow-carry');
+  await expect(carry).toHaveText('1');
+
+  // The carry mark sits just to the LEFT of the ones digit (reads as "1" "2").
+  const carryBox = await carry.boundingBox();
+  const onesBox = await onesCell.boundingBox();
+  const carryCenterX = carryBox.x + carryBox.width / 2;
+  expect(carryCenterX).toBeLessThan(onesBox.x + onesBox.width / 2); // left of the "2"
+  expect(carryCenterX).toBeGreaterThan(onesBox.x - 30);            // but adjacent to the cell
 });

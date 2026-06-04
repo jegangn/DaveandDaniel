@@ -4,13 +4,15 @@
  * Rigorous math-correctness audit for all 6 subtraction levels (30 problems total).
  *
  * Borrow note:
- *   When aOnes < bOnes the game plays animateBorrow (~1050ms) before the player
- *   can drag. After borrow the worksheet shows regrouped values:
- *     tens cell: aTens - 1
- *     ones cell: aOnes + 10   (shown as two-digit text, e.g. "12")
- *   readWorksheetOperands() joins the raw cell text, which yields a mis-parsed
- *   number for regrouped ones (e.g. "2" + "12" = "212"). So on borrow problems
- *   we verify b only and trust the answer-drop as the math-correctness assertion.
+ *   When aOnes < bOnes the game plays animateBorrow (a ~6.5s teacher's-pen
+ *   walkthrough) BEFORE the tiles become draggable, so each borrow problem must
+ *   wait the animation out. After borrow the worksheet shows regrouped values
+ *   as teacher's notation: the tens digit is struck and rewritten (aTens - 1),
+ *   and a separate "1" carry mark is drawn beside the UNCHANGED ones digit (so
+ *   the ones column reads aOnes+10, e.g. "1" + "2" = "12", while the cell text
+ *   itself stays "2"). readWorksheetOperands() joins the raw cell text, which on
+ *   borrow problems no longer equals seedA, so we verify b only and trust the
+ *   answer-drop as the math-correctness assertion.
  */
 
 import { test, expect } from "@playwright/test";
@@ -51,9 +53,11 @@ for (let level = 1; level <= 6; level++) {
       const needsBorrow = (seedA % 10) < (seedB % 10);
 
       // On first problem wait for initial render; on subsequent ones wait for
-      // advanceProblem's 500ms transition + borrow animation if applicable.
+      // advanceProblem's 500ms transition. Borrow problems then play a ~6.5s
+      // animation that blocks dragging until it resolves (setupDrag fires only
+      // after animateBorrow's promise settles), so wait it out fully.
       const baseWait = i === 0 ? 400 : 700;
-      const borrowWait = needsBorrow ? 1200 : 0;
+      const borrowWait = needsBorrow ? 7000 : 0;
       await page.waitForTimeout(baseWait + borrowWait);
 
       // --- Verify operands ---
@@ -84,7 +88,7 @@ for (let level = 1; level <= 6; level++) {
 
 // ---------------------------------------------------------------------------
 // Borrow animation check: L4 P1 (32-15, needsBorrow=true)
-//   After animation: ones cell = "12", replacement = "2"
+//   Tens digit struck + rewritten "2"; ones column shows carry "1" beside "2".
 // ---------------------------------------------------------------------------
 test("subtraction L4 P1: borrow animation shows regrouped values correctly", async ({ page }) => {
   test.setTimeout(30_000);
@@ -92,14 +96,18 @@ test("subtraction L4 P1: borrow animation shows regrouped values correctly", asy
   await goToLevel(page, "sub", 4);
   await expect(page.locator("#screen-sub")).toBeVisible({ timeout: 5000 });
 
-  // animateBorrow ~1050ms — wait for it
-  await page.waitForTimeout(1400);
-
-  // 32 - 15: aTens=3, aOnes=2. Borrow: newTens=2, onesBecomesValue=12.
+  // 32 - 15: aTens=3, aOnes=2. Borrow: new tens digit = 2, ones regroups to 12.
+  // Phase A: the tens digit is struck and a small "2" is written above it.
+  await page.waitForSelector(".strike", { timeout: 5000 });
   await expect(page.locator(".strike")).toBeVisible();
-  await expect(page.locator(".borrow-replacement")).toHaveText("2");
+  await expect(page.locator(".borrow-replacement:not(.borrow-carry)")).toHaveText("2");
+
+  // The regrouped ones value is shown as a carry mark "1" beside the UNCHANGED
+  // ones digit "2" (reading "12"); the cell text itself stays "2".
+  await page.waitForSelector(".borrow-carry", { timeout: 9000 });
+  await expect(page.locator(".borrow-carry")).toHaveText("1");
   const onesCell = page.locator(".row.top .cell").nth(1);
-  await expect(onesCell).toHaveText("12");
+  await expect(onesCell).toHaveText("2");
 });
 
 // ---------------------------------------------------------------------------

@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { unlockAll } from './helpers/math.js';
+import { goToLevel } from './helpers/math.js';
+
+// "Dave and Daniel" boots to the Who's-playing picker, so the old
+// goto('/') -> .splash-play flow no longer reaches a level. Navigate straight
+// to Dave's Sub L3 (problem 1 = 22-7, borrow needed) via the router helper.
 
 test('borrow strike stays inside the tens cell (does not bleed into ones)', async ({ page }) => {
   test.setTimeout(30_000);
-  await page.goto('/');
-  await unlockAll(page);
-  await page.goto('/');
-  await page.locator('.splash-play').click();
-  // Sub L3 problem 1 is 22-7 (borrow needed)
-  await page.locator('.world-panel').nth(1).locator('.level-node[data-level="3"]').click();
-  await page.waitForTimeout(700);
+  await page.goto('/?profile=dave');
+  await goToLevel(page, 'sub', 3);
+  await expect(page.locator('#screen-sub')).toBeVisible({ timeout: 5000 });
 
   // Strike should exist
   const strike = page.locator('.strike').first();
@@ -34,23 +34,17 @@ test('borrow strike stays inside the tens cell (does not bleed into ones)', asyn
 
 test('borrow animation takes at least 2.5 seconds total', async ({ page }) => {
   test.setTimeout(15_000);
-  await page.goto('/');
-  await unlockAll(page);
-  await page.goto('/');
-  await page.locator('.splash-play').click();
+  await page.goto('/?profile=dave');
 
   const start = Date.now();
-  await page.locator('.world-panel').nth(1).locator('.level-node[data-level="3"]').click();
+  await goToLevel(page, 'sub', 3);
 
-  // The borrow chip is created mid-animation; the ones digit changes textContent
-  // late in the animation. We wait until the ones cell shows the regrouped value
-  // (e.g., 22-7: ones becomes 12).
-  await page.waitForFunction(() => {
-    const cell = document.querySelector('.worksheet .row.top .cell:nth-child(2)');
-    return cell && cell.textContent.trim().length === 2;
-  }, { timeout: 6000 });
+  // The regrouped ones value is revealed LATE in the animation as a separate
+  // pencil-style carry mark ("1") next to the unchanged ones digit ("2") — the
+  // ones cell text itself stays "2". Wait until that carry mark appears.
+  await page.waitForSelector('.borrow-carry', { timeout: 9000 });
 
   const elapsed = Date.now() - start;
-  // Strike + new tens + chip drop + ones morph; total should be 2.5s+
+  // Strike + new tens + chip drop + equation hold + carry mark; total is 2.5s+
   expect(elapsed).toBeGreaterThanOrEqual(2500);
 });
