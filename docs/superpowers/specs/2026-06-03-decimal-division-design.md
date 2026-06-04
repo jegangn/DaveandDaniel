@@ -1,7 +1,7 @@
 # OP: SPLIT — Decimal Division (replace remainders)
 
 **Date:** 2026-06-03
-**Status:** Approved (design) — pending spec review
+**Status:** Implemented
 **Screen:** Daniel · `ndiv` world · `src/screens/short-div.js`
 
 ## Problem
