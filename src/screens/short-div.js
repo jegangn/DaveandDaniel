@@ -1,7 +1,8 @@
 // Daniel · OP: SPLIT — short ("bus-stop") division, single-digit divisor.
 // Quotient is entered LEFT-to-RIGHT (one digit above each dividend digit). After
 // each digit the carried remainder appears as a small superscript before the
-// next dividend digit; the final remainder is revealed as "r N" at the end.
+// next column; the quotient then continues past an auto-placed decimal point
+// (dividend gains ".0"/".00") until it divides exactly — no remainder is shown.
 import { createDragManager } from "../drag.js";
 import { tilePickup, tileBounceBack, tileSnapIn } from "../animate.js";
 import { isComplete } from "../logic.js";
