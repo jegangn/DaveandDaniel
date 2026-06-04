@@ -185,6 +185,7 @@ export function analyzeShortDiv(dividend, divisor) {
 // vary every replay while difficulty still climbs cleanly.
 
 function randInt(rng, lo, hi) { return lo + Math.floor(rng() * (hi - lo + 1)); }
+function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 function nDigit(rng, n) { return randInt(rng, Math.pow(10, n - 1), Math.pow(10, n) - 1); }
 function genUntil(make, ok, cap = 8000) {
   let last;
@@ -222,11 +223,11 @@ const BANDS = {
     5: { kind: "mul", dA: 2, dB: 2, lo: 42, hi: 99 },
   },
   ndiv: {
-    1: { kind: "div", dA: 2, exact: true, dlo: 2, dhi: 6 },
-    2: { kind: "div", dA: 2, exact: false, dlo: 2, dhi: 6 },
-    3: { kind: "div", dA: 3, exact: true, dlo: 3, dhi: 9 },
-    4: { kind: "div", dA: 3, exact: false, dlo: 3, dhi: 9 },
-    5: { kind: "div", dA: 3, exact: false, dlo: 4, dhi: 9 },
+    1: { kind: "div", dA: 2, divisors: [2, 5], places: 1 },
+    2: { kind: "div", dA: 3, divisors: [2, 5], places: 1 },
+    3: { kind: "div", dA: 2, divisors: [4], places: 2 },
+    4: { kind: "div", dA: 3, divisors: [4], places: 2 },
+    5: { kind: "div", dA: 3, divisors: [2, 4, 5], places: "any" },
   },
 };
 
@@ -279,13 +280,15 @@ function genMul(rng, band) {
 
 function genDiv(rng, band) {
   const { a, b } = genUntil(
-    () => ({ a: nDigit(rng, band.dA), b: randInt(rng, band.dlo, band.dhi) }),
+    () => ({ a: nDigit(rng, band.dA), b: pick(rng, band.divisors) }),
     ({ a, b }) => {
-      if (digitsOfN(a)[0] < b) return false; // clean leading quotient digit (no leading zero)
-      return band.exact ? a % b === 0 : a % b !== 0;
+      if (a % b === 0) return false;                 // must leave a real decimal
+      if (digitsOfN(a)[0] < b) return false;         // quotient has no leading zero
+      const places = analyzeShortDiv(a, b).decimalPlaces;
+      return band.places === "any" ? true : places === band.places;
     }
   );
-  return { op: "÷", a, b, answer: Math.floor(a / b), remainder: a % b };
+  return { op: "÷", a, b, answer: a / b };
 }
 
 export function getProblemsDaniel(world, level, rng = Math.random) {

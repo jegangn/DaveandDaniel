@@ -248,20 +248,25 @@ test("OVERRIDE (nmul): M1/M2 ×1-digit; M3-M5 2-digit × 2-digit (no trivial ×1
   }
 });
 
-test("SPLIT (ndiv): divisor 1-digit; first dividend digit >= divisor; M1 exact 2-digit; M4 3-digit", () => {
+const divPlaces = (a, b) => analyzeShortDiv(a, b).decimalPlaces;
+
+test("SPLIT (ndiv): decimals only — divisors 2/4/5, non-integer, no leading zero, exact <=2 places", () => {
+  const allowed = { 1: [2, 5], 2: [2, 5], 3: [4], 4: [4], 5: [2, 4, 5] };
+  const places  = { 1: 1, 2: 1, 3: 2, 4: 2, 5: "any" };
+  const nDigits = { 1: 2, 2: 3, 3: 2, 4: 3, 5: 3 };
   for (const seed of SEEDS) {
     for (let m = 1; m <= 5; m++) {
       for (const p of getProblemsDaniel("ndiv", m, mulberry32(seed))) {
-        expect(p.b).toBeGreaterThanOrEqual(2); expect(p.b).toBeLessThan(10);
-        expect(digitsOfN(p.a)[0]).toBeGreaterThanOrEqual(p.b);
+        expect(allowed[m]).toContain(p.b);                      // divisor in band set
+        expect(p.a % p.b).not.toBe(0);                          // forces a decimal
+        expect(digitsOfN(p.a)[0]).toBeGreaterThanOrEqual(p.b);  // quotient has no leading zero
+        expect(p.answer).toBe(p.a / p.b);                       // exact decimal value
+        expect(String(p.a).length).toBe(nDigits[m]);            // dividend size
+        const pl = divPlaces(p.a, p.b);
+        expect(pl).toBeGreaterThanOrEqual(1);
+        expect(pl).toBeLessThanOrEqual(2);
+        if (places[m] !== "any") expect(pl).toBe(places[m]);
       }
-    }
-    for (const p of getProblemsDaniel("ndiv", 1, mulberry32(seed))) {
-      expect(p.a).toBeGreaterThanOrEqual(10); expect(p.a).toBeLessThan(100);
-      expect(p.a % p.b).toBe(0);
-    }
-    for (const p of getProblemsDaniel("ndiv", 4, mulberry32(seed))) {
-      expect(p.a).toBeGreaterThanOrEqual(100); expect(p.a).toBeLessThan(1000);
     }
   }
 });
