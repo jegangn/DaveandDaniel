@@ -136,18 +136,33 @@ test("analyzeLongMult: ×1-digit → single partial, no sum row", () => {
   expect(r.product).toBe(1638);
 });
 
-test("analyzeShortDiv: bus-stop quotient, remainder, carried remainders", () => {
-  const r = analyzeShortDiv(416, 3); // 138 r2
-  expect(r.quotientDigits).toEqual([1, 3, 8]);
-  expect(r.remainder).toBe(2);
-  expect(r.steps.map((s) => s.remainder)).toEqual([1, 2, 2]);
-  expect(r.steps.map((s) => s.carryIn)).toEqual([0, 1, 2]);
+test("analyzeShortDiv: decimal expansion, 1 place (764 ÷ 5 = 152.8)", () => {
+  const r = analyzeShortDiv(764, 5);
+  expect(r.quotientIntDigits).toEqual([1, 5, 2]);
+  expect(r.quotientDecDigits).toEqual([8]);
+  expect(r.decimalPlaces).toBe(1);
+  expect(r.answer).toBe(152.8);
+  expect(r.remainder).toBe(0);
+  // last step brings down a zero against the integer remainder (4): 40 / 5 = 8
+  expect(r.steps.at(-1)).toMatchObject({ digit: 0, carryIn: 4, value: 40, q: 8, remainder: 0, decimal: true });
 });
 
-test("analyzeShortDiv: exact division with an internal zero in the quotient", () => {
-  const r = analyzeShortDiv(618, 6); // 103 r0
-  expect(r.quotientDigits).toEqual([1, 0, 3]);
+test("analyzeShortDiv: decimal expansion, 2 places (765 ÷ 4 = 191.25)", () => {
+  const r = analyzeShortDiv(765, 4);
+  expect(r.quotientIntDigits).toEqual([1, 9, 1]);
+  expect(r.quotientDecDigits).toEqual([2, 5]);
+  expect(r.decimalPlaces).toBe(2);
+  expect(r.answer).toBe(191.25);
   expect(r.remainder).toBe(0);
+  expect(r.steps.length).toBe(5); // 3 integer + 2 decimal
+});
+
+test("analyzeShortDiv: 2-digit ÷ 2 → one decimal place (47 ÷ 2 = 23.5)", () => {
+  const r = analyzeShortDiv(47, 2);
+  expect(r.quotientIntDigits).toEqual([2, 3]);
+  expect(r.quotientDecDigits).toEqual([5]);
+  expect(r.answer).toBe(23.5);
+  expect(r.steps.filter((s) => s.decimal).length).toBe(1);
 });
 
 // ===== 3.4 band generators =================================================

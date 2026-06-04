@@ -130,20 +130,52 @@ export function analyzeLongMult(a, b) {
 // column. Quotient digits align 1:1 with dividend digits (the generator keeps
 // the leading dividend digit >= divisor, so there is never an awkward leading
 // zero to drag; internal zeros are still possible and are good practice).
+// After the integer part, the walk continues into the decimal part by bringing
+// down zeros until the remainder is 0 (capped at 2 places); generated divisors
+// (2/4/5) always terminate within that cap.
 export function analyzeShortDiv(dividend, divisor) {
-  const dD = digitsOfN(dividend); // MSB-first
+  const MAX_PLACES = 2;
+  const intDigits = digitsOfN(dividend); // MSB-first
   const steps = [];
-  const quotientDigits = [];
+  const quotientIntDigits = [];
+  const quotientDecDigits = [];
   let carry = 0;
-  for (let i = 0; i < dD.length; i++) {
+
+  // Integer part: one column per dividend digit.
+  for (let i = 0; i < intDigits.length; i++) {
     const carryIn = carry;
-    const value = carryIn * 10 + dD[i];
+    const value = carryIn * 10 + intDigits[i];
     const q = Math.floor(value / divisor);
     carry = value % divisor;
-    quotientDigits.push(q);
-    steps.push({ digit: dD[i], carryIn, value, q, remainder: carry });
+    quotientIntDigits.push(q);
+    steps.push({ digit: intDigits[i], carryIn, value, q, remainder: carry, decimal: false });
   }
-  return { dividend, divisor, quotientDigits, remainder: carry, steps };
+
+  // Decimal part: bring down zeros until the remainder clears (capped at MAX_PLACES).
+  while (carry > 0 && quotientDecDigits.length < MAX_PLACES) {
+    const carryIn = carry;
+    const value = carryIn * 10; // brought-down zero
+    const q = Math.floor(value / divisor);
+    carry = value % divisor;
+    quotientDecDigits.push(q);
+    steps.push({ digit: 0, carryIn, value, q, remainder: carry, decimal: true });
+  }
+
+  const answer = Number(
+    quotientIntDigits.join("") +
+    (quotientDecDigits.length ? "." + quotientDecDigits.join("") : "")
+  );
+
+  return {
+    dividend, divisor,
+    intDigits,
+    decimalPlaces: quotientDecDigits.length,
+    quotientIntDigits,
+    quotientDecDigits,
+    steps,
+    remainder: carry,
+    answer,
+  };
 }
 
 // ----- Seeded problem generators (difficulty bands) -------------------------
