@@ -163,9 +163,16 @@ export function mount(stage, ctx, router) {
           const sup = sec.querySelector(`.div-carry[data-col="${placed + 1}"]`);
           if (sup) {
             sup.classList.add("show");
+            // Carry travels in from the LEFT — starting over the previous digit it
+            // was divided from, then sliding right into its tuck before this digit —
+            // so the "bring the remainder over to the next number" motion is clear.
+            const colW = sup.parentElement.getBoundingClientRect().width || 88;
             sup.animate(
-              [{ opacity: 0, transform: "scale(0.4)" }, { opacity: 1, transform: "scale(1)" }],
-              { duration: 350, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+              [
+                { opacity: 0, transform: `translateX(-${(colW * 0.7).toFixed(1)}px) scale(0.7)` },
+                { opacity: 1, transform: "translateX(0) scale(1)" },
+              ],
+              { duration: 420, easing: "cubic-bezier(0.25,0.9,0.3,1.4)", fill: "forwards" }
             );
             sfx.slotFill();
           }

@@ -1427,7 +1427,9 @@ button {
 .div-ws .div-divisor { display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
 .div-carry {
   position: absolute; top: 2px; left: 6px; font-size: 30px; line-height: 1;
-  color: var(--world-accent); font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
+  /* Explicit deep orange (not --world-accent): the carried remainder must pop
+     against the cream paper — the world's green read at ~1.3:1 and was easy to miss. */
+  color: #EE6A00; font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700;
   opacity: 0; pointer-events: none;
 }
 .div-carry.show { opacity: 1; }
