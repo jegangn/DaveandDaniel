@@ -1,20 +1,21 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import * as esbuild from "esbuild";
 
 const SRC = "src";
 const OUT = ".";
 if (OUT !== ".") mkdirSync(OUT, { recursive: true });
 
-const bundled = spawnSync("bunx", ["esbuild", "src/game.js", "--bundle", "--format=iife", "--target=es2020"], {
-  encoding: "utf8",
-  shell: true,
+// Bundle via esbuild's Node API (works under both `node build.js` and `bun build.js`;
+// no reliance on `bunx` being on PATH).
+const bundled = esbuild.buildSync({
+  entryPoints: ["src/game.js"],
+  bundle: true,
+  format: "iife",
+  target: "es2020",
+  write: false,
 });
-if (bundled.status !== 0) {
-  console.error(bundled.stderr);
-  process.exit(1);
-}
-const js = bundled.stdout;
+const js = bundled.outputFiles[0].text;
 
 const html = readFileSync(join(SRC, "index.html"), "utf8");
 const css  = readFileSync(join(SRC, "style.css"), "utf8");
