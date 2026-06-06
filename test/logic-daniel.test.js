@@ -290,3 +290,9 @@ test("partialCarries: carries of a single-digit multiply, keyed by the grid colu
   expect(partialCarries(234, 7, 0, 4)).toEqual({ 2: 2, 1: 2, 0: 1 });
   expect(partialCarries(12, 4, 0, 2)).toEqual({});
 });
+
+test("sumCarries: carries (always 1) of adding two partials, keyed by grid column", () => {
+  expect(sumCarries(224, 3920)).toEqual({ 0: 1 });
+  expect(sumCarries(99, 99)).toEqual({ 1: 1, 0: 1 });
+  expect(sumCarries(12, 13)).toEqual({});
+});

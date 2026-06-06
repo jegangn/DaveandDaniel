@@ -138,7 +138,15 @@ export function partialCarries(a, digit, shift, N) {
 // Carries of adding two addends, keyed by the grid column they feed INTO. Two-addend
 // addition always carries 0 or 1; `analyzeColumnsAdd(...).width` === answer length.
 export function sumCarries(addA, addB) {
-  throw new Error("not implemented");
+  const { carryOut, width } = analyzeColumnsAdd(addA, addB);
+  const carries = {};
+  for (let i = 0; i < width; i++) {
+    if (carryOut[i]) {
+      const col = (width - 1) - (i + 1);
+      if (col >= 0) carries[col] = 1;
+    }
+  }
+  return carries;
 }
 
 // Ordered fill steps for one row: walk result columns right-to-left (di high->low),
