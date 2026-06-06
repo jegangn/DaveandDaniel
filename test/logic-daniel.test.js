@@ -3,6 +3,7 @@ import {
   mulberry32, digitsOfN, createAnswerStateN, dropDigit, dropDigitLTR,
   analyzeColumnsAdd, analyzeColumnsSub, analyzeLongMult, analyzeShortDiv,
   getProblemsDaniel,
+  placeDigits, partialCarries, sumCarries, buildSequence,
 } from "../src/logic-daniel.js";
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
@@ -269,4 +270,15 @@ test("SPLIT (ndiv): decimals only — divisors 2/4/5, non-integer, no leading ze
       }
     }
   }
+});
+
+// ===== OP: CARRYOVER — pure helpers =========================================
+
+test("placeDigits: right-aligns digits into N columns, shifted left by `shift`", () => {
+  expect(placeDigits(392, 1, 4)).toEqual([
+    { digit: 3, di: 0 }, { digit: 9, di: 1 }, { digit: 2, di: 2 }, null,
+  ]);
+  expect(placeDigits(224, 0, 4)).toEqual([
+    null, { digit: 2, di: 0 }, { digit: 2, di: 1 }, { digit: 4, di: 2 },
+  ]);
 });

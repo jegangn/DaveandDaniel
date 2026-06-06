@@ -16,6 +16,18 @@ export function mulberry32(seed) {
 
 export const digitsOfN = (n) => String(n).split("").map(Number);
 
+// Place a value's digits across N grid columns, shifted left by `shift`.
+// Returns an N-length array, col -> { digit, di } (di = MSB-first index) or null.
+export function placeDigits(value, shift, N) {
+  const D = String(value).split("").map(Number);
+  const cells = new Array(N).fill(null);
+  for (let k = 0; k < D.length; k++) {
+    const col = (N - 1) - shift - k;
+    if (col >= 0) cells[col] = { digit: D[D.length - 1 - k], di: D.length - 1 - k };
+  }
+  return cells;
+}
+
 // Answer state for column entry. dir "rtl" (add/sub/mult) starts at the ones;
 // dir "ltr" (division quotient) starts at the most-significant digit.
 export function createAnswerStateN(answer, dir = "rtl") {
@@ -101,6 +113,27 @@ export function analyzeColumnsSub(a, b) {
     }
   }
   return { answer: a - b, width, aDigits: digitsOfN(a), bDigits: digitsOfN(b), topRegrouped: work, borrow, steps };
+}
+
+// ----- Long multiplication carry helpers ------------------------------------
+
+// Carries produced when multiplying `a` by one `digit`, LSB-first. Each non-zero
+// carry is recorded at the grid column it feeds INTO (incl. the final bring-down
+// carry that becomes the leading digit). Carry per single-digit step is one digit.
+export function partialCarries(a, digit, shift, N) {
+  throw new Error("not implemented");
+}
+
+// Carries of adding two addends, keyed by the grid column they feed INTO. Two-addend
+// addition always carries 0 or 1; `analyzeColumnsAdd(...).width` === answer length.
+export function sumCarries(addA, addB) {
+  throw new Error("not implemented");
+}
+
+// Ordered fill steps for one row: walk result columns right-to-left (di high->low),
+// emitting a column's incoming carry (if any) just before that column's result.
+export function buildSequence(cells, carries = {}) {
+  throw new Error("not implemented");
 }
 
 // ----- Long multiplication ---------------------------------------------------
