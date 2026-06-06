@@ -121,7 +121,18 @@ export function analyzeColumnsSub(a, b) {
 // carry is recorded at the grid column it feeds INTO (incl. the final bring-down
 // carry that becomes the leading digit). Carry per single-digit step is one digit.
 export function partialCarries(a, digit, shift, N) {
-  throw new Error("not implemented");
+  const aR = digitsOfN(a).reverse();
+  const carries = {};
+  let carry = 0;
+  for (let k = 0; k < aR.length; k++) {
+    const prod = aR[k] * digit + carry;
+    carry = Math.floor(prod / 10);
+    if (carry > 0) {
+      const col = (N - 1) - shift - (k + 1);
+      if (col >= 0) carries[col] = carry;
+    }
+  }
+  return carries;
 }
 
 // Carries of adding two addends, keyed by the grid column they feed INTO. Two-addend

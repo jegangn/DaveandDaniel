@@ -282,3 +282,11 @@ test("placeDigits: right-aligns digits into N columns, shifted left by `shift`",
     null, { digit: 2, di: 0 }, { digit: 2, di: 1 }, { digit: 4, di: 2 },
   ]);
 });
+
+test("partialCarries: carries of a single-digit multiply, keyed by the grid column they feed", () => {
+  expect(partialCarries(56, 7, 1, 4)).toEqual({ 1: 4, 0: 3 });
+  expect(partialCarries(56, 4, 0, 4)).toEqual({ 2: 2, 1: 2 });
+  expect(partialCarries(8, 6, 0, 2)).toEqual({ 0: 4 });
+  expect(partialCarries(234, 7, 0, 4)).toEqual({ 2: 2, 1: 2, 0: 1 });
+  expect(partialCarries(12, 4, 0, 2)).toEqual({});
+});
