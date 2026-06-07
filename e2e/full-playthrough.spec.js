@@ -29,6 +29,28 @@ async function goToMap(page) {
 }
 
 /**
+ * Wait until the add/sub digit-tray tiles have their drag handlers bound.
+ * After a borrow problem renders, sub.js only calls setupDrag()/attachTile
+ * Listeners AFTER the (~5.5s) animateBorrow promise resolves — so a tile can be
+ * visible on screen with no onpointerdown handler, and mouse.down() silently
+ * does nothing (no drag clone, no fill). Poll the actual handler binding.
+ */
+async function waitForDragReady(page, scope = "") {
+  await page
+    .locator(`${scope} .digit-tray .tile`.trim())
+    .first()
+    .waitFor({ state: "visible" });
+  await page.waitForFunction(
+    (sel) => {
+      const t = document.querySelector(sel);
+      return !!(t && t.onpointerdown);
+    },
+    `${scope} .digit-tray .tile`.trim(),
+    { timeout: 9000 }
+  );
+}
+
+/**
  * Drag a digit tile to a slot using small pointer steps.
  * @param {Page}   page
  * @param {number} digit        0-9
@@ -37,6 +59,16 @@ async function goToMap(page) {
 async function dragDigit(page, digit, slotSelector) {
   const tile = page.locator(`.tile[data-digit="${digit}"]`).first();
   const slot = page.locator(slotSelector).first();
+
+  // After a correct drop the game snaps in (~380ms) then rebuilds the tray and
+  // re-activates the next slot synchronously — during which slots are briefly
+  // inactive and tiles detached, so boundingBox() can return null. Wait for both
+  // the slot and the tile to settle before measuring.
+  await slot.waitFor({ state: "visible" });
+  await tile.waitFor({ state: "visible" });
+  // Let the slot re-activation + tray rebuild fully settle so the pointermove
+  // handlers are bound to the fresh elements before we measure/drag.
+  await page.waitForTimeout(150);
 
   const tBox = await tile.boundingBox();
   const sBox = await slot.boundingBox();
@@ -116,11 +148,12 @@ async function enterAnswer(page, answer, hasCarry = false) {
  * Pre-seed localStorage so specific levels are unlocked.
  * Call via page.addInitScript so it runs before page JS.
  */
-function seedProgress(entries) {
+function seedProgress(entries, profile = "dave") {
   // entries: array of [world, level, stars], e.g. [["add", 1, 3], ["add", 2, 3]]
+  // Star keys are profile-namespaced: `dave.stars.<world>.<level>`.
   return () => {
     for (const [w, l, s] of entries) {
-      localStorage.setItem(`bm.stars.${w}.${l}`, String(s));
+      localStorage.setItem(`${profile}.stars.${w}.${l}`, String(s));
     }
   };
 }
@@ -129,16 +162,42 @@ function seedProgress(entries) {
  * Navigate directly to a level screen (bypasses map click — useful when
  * pre-seeding unlocks levels beyond L1).
  */
-async function goToLevel(page, world, level) {
-  await page.goto("/");
+async function goToLevel(page, world, level, profile = "dave") {
+  // Navigate with ?profile so the right boy is active before deep-linking,
+  // otherwise the level mounts under an empty/wrong profile and the worksheet
+  // never renders (null boundingBox).
+  await page.goto("/?profile=" + profile);
   await page.evaluate(
-    ({ w, l }) => {
+    ({ w, l, p }) => {
+      if (window.__setProfile) window.__setProfile(p);
       window.__router.go("level", { world: w, level: l });
     },
-    { w: world, l: level }
+    { w: world, l: level, p: profile }
   );
   // Brief wait for mount
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Drag the single mult-answer tile (data-value === answer) into the active
+ * equation slot (.mult-problem .slot.active). Mult tiles use data-value, NOT
+ * data-digit. The answer is one slot: a plain digit tile for <10, a compound
+ * tile for >=10.
+ */
+async function dragMultAnswer(page, answer) {
+  const slot = page.locator(".mult-problem .slot.active").first();
+  await slot.waitFor({ state: "visible" });
+  const tile = page.locator(`.digit-tray .tile[data-value="${answer}"]`).first();
+  await tile.waitFor({ state: "visible" });
+
+  const tBox = await tile.boundingBox();
+  const sBox = await slot.boundingBox();
+
+  await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(500);
 }
 
 /**
@@ -192,7 +251,7 @@ test("Test 1: Add L1 full playthrough — 3 stars, localStorage persisted", asyn
 
   // localStorage persisted
   const stored = await page.evaluate(() =>
-    localStorage.getItem("bm.stars.add.1")
+    localStorage.getItem("dave.stars.add.1")
   );
   expect(stored).toBe("3");
 });
@@ -273,7 +332,7 @@ test("Test 3: Sub L1 full playthrough — 3 stars", async ({ page }) => {
 test("Test 4: Sub L4 borrow animation — strike + replacement + ones update", async ({
   page,
 }) => {
-  test.setTimeout(60_000); // 5 borrow problems × ~2.5s each
+  test.setTimeout(120_000); // 5 borrow problems × ~6s of animation each
   await page.addInitScript(
     seedProgress([
       ["sub", 1, 3],
@@ -284,21 +343,31 @@ test("Test 4: Sub L4 borrow animation — strike + replacement + ones update", a
   await goToLevel(page, "sub", 4);
   await expect(page.locator("#screen-sub")).toBeVisible();
 
-  // animateBorrow takes ~1050 ms (300ms delay + 600ms chip + 300ms blink)
-  // Wait for it to fully complete
-  await page.waitForTimeout(1500);
+  // animateBorrow now draws a strike over the tens, writes a smaller
+  // replacement tens digit, and adds a pencil-style carry "1" next to the ones
+  // digit (the ones cell keeps its original digit). The whole sequence runs
+  // ~5.5s; wait for the ones-carry mark to appear, which is the last step.
+  await expect(page.locator(".borrow-carry")).toBeVisible({ timeout: 8000 });
 
   // Verify borrow elements rendered
   await expect(page.locator(".strike")).toBeVisible();
-  await expect(page.locator(".borrow-replacement")).toBeVisible();
 
-  // The ones cell should now show "12" (2 + 10 from borrow)
-  // It's the second cell in .row.top
+  // Problem 1 is 32 - 15. The ones cell KEEPS its original digit "2"; the
+  // regrouped value is read as carry "1" + cell "2" = 12.
   const onesCell = page.locator(".row.top .cell").nth(1);
-  await expect(onesCell).toHaveText("12");
+  await expect(onesCell).toHaveText("2");
 
-  // The tens replacement should show "2" (3 - 1 = 2)
-  await expect(page.locator(".borrow-replacement")).toHaveText("2");
+  // The ones carry mark shows "1".
+  await expect(page.locator(".borrow-carry")).toHaveText("1");
+
+  // The tens replacement (struck 3 → 2) is the non-carry borrow-replacement.
+  await expect(
+    page.locator(".borrow-replacement:not(.borrow-carry)")
+  ).toHaveText("2");
+
+  // The tray handlers are bound only after animateBorrow fully resolves
+  // (~1.2s after the carry appears), so wait for them before dragging.
+  await waitForDragReady(page, "#screen-sub");
 
   // Answer 17: ones=7, tens=1
   await dragDigit(page, 7, ".slot.active");
@@ -306,10 +375,11 @@ test("Test 4: Sub L4 borrow animation — strike + replacement + ones update", a
   await dragDigit(page, 1, ".slot.active");
   await page.waitForTimeout(900);
 
-  // Remaining problems: 18, 24, 28, 37
+  // Remaining problems: 18, 24, 28, 37 — wait for each borrow to finish first.
   const remaining = [18, 24, 28, 37];
   for (const ans of remaining) {
-    await page.waitForTimeout(1500); // borrow animation per problem
+    await expect(page.locator(".borrow-carry")).toBeVisible({ timeout: 8000 });
+    await waitForDragReady(page, "#screen-sub");
     await enterAnswer(page, ans);
     await page.waitForTimeout(900);
   }
@@ -350,15 +420,12 @@ test("Test 5: Mult tap L1 full playthrough — tap all blocks, drag answer", asy
       untapped = await page.locator(".block-host.untapped").count();
     }
 
-    // Reveal panel appears
-    await expect(
-      page.locator(".total-reveal:not(.hidden)"),
-      "reveal panel should appear"
-    ).toBeVisible({ timeout: 3000 });
+    // The single answer slot lives in the equation header (.mult-problem .slot)
+    // and is present immediately — no reveal panel to wait for.
     await page.waitForTimeout(300);
 
-    // Drop the answer
-    await enterAnswer(page, ans);
+    // Drag the one tile whose value === the answer into the active slot.
+    await dragMultAnswer(page, ans);
     await page.waitForTimeout(900);
   }
 
@@ -387,7 +454,10 @@ test("Test 6: Mult drag L4 — fill group trays then drag answer", async ({
   await goToLevel(page, "mult", 4);
   await expect(page.locator("#screen-mult-drag")).toBeVisible();
 
-  // Each problem: groups=a, blocksPerGroup=b, answer=a*b
+  // "a × b" now means b groups of a items (groups = second operand).
+  // SEED multDrag L4 = [[2,3],[3,2],[3,3],[4,2],[2,4]]:
+  //   a = items per group (ghosts per tray, chip shows "★ a")
+  //   b = number of groups (number of .group-tray)
   const problems = [
     { a: 2, b: 3, answer: 6 },
     { a: 3, b: 2, answer: 6 },
@@ -397,27 +467,25 @@ test("Test 6: Mult drag L4 — fill group trays then drag answer", async ({
   ];
 
   for (const { a, b, answer } of problems) {
-    await page.waitForTimeout(200);
-
-    // Fill each group tray with b blocks
-    for (let g = 0; g < a; g++) {
-      for (let fill = 0; fill < b; fill++) {
-        await dragBlockToTray(page, g);
-      }
-      // Verify count chip shows filled state for this tray
-      const chip = page.locator(`.group-tray[data-idx="${g}"] .count-chip`);
-      await expect(chip).toHaveText(`★ ${b}`, { timeout: 2000 });
-    }
-
-    // Answer phase appears after 800ms delay (from game code)
-    await expect(
-      page.locator(".ans-host:not(.hidden)"),
-      "answer host visible"
-    ).toBeVisible({ timeout: 2000 });
     await page.waitForTimeout(300);
 
-    // Drop the answer digits
-    await enterAnswer(page, answer);
+    // There are b group trays, each needing a blocks. Tapping a pile mango
+    // (onPileTap) auto-flies a copy into the next empty group slot. Tap the
+    // pile a*b times to fill every group.
+    for (let g = 0; g < b; g++) {
+      for (let fill = 0; fill < a; fill++) {
+        await page.locator(".block-pile .block-host").first().click({ force: true });
+        await page.waitForTimeout(450); // fly animation (380ms) + buffer
+      }
+      // Verify count chip shows filled state for this tray (★ a items)
+      const chip = page.locator(`.group-tray[data-idx="${g}"] .count-chip`);
+      await expect(chip).toHaveText(`★ ${a}`, { timeout: 2000 });
+    }
+
+    await page.waitForTimeout(300);
+
+    // The single answer slot is in the equation header — drag the matching tile.
+    await dragMultAnswer(page, answer);
     await page.waitForTimeout(700);
   }
 
@@ -547,7 +615,7 @@ test("Test 9: Star scoring — 3 wrongs across level gives 2 stars", async ({
 
   // localStorage should store 2
   const stored = await page.evaluate(() =>
-    localStorage.getItem("bm.stars.add.1")
+    localStorage.getItem("dave.stars.add.1")
   );
   expect(stored).toBe("2");
 });
@@ -604,7 +672,7 @@ test("Test 11: RTL enforcement — dropping tens before ones is rejected", async
 // All have borrow (aOnes < bOnes)
 // ---------------------------------------------------------------------------
 test("Test 12: Sub L3 borrow — full playthrough", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   await page.addInitScript(
     seedProgress([
       ["sub", 1, 3],
@@ -616,8 +684,10 @@ test("Test 12: Sub L3 borrow — full playthrough", async ({ page }) => {
 
   const answers = [15, 27, 15, 27, 35];
   for (const ans of answers) {
-    // Wait for borrow animation to complete before entering answer
-    await page.waitForTimeout(1500);
+    // Wait for the borrow animation (ends with the ones carry mark) and for
+    // the tray drag handlers to bind before entering the answer.
+    await expect(page.locator(".borrow-carry")).toBeVisible({ timeout: 8000 });
+    await waitForDragReady(page, "#screen-sub");
     await enterAnswer(page, ans);
     await page.waitForTimeout(900);
   }
@@ -664,20 +734,22 @@ test("Test 13: Add L6 full playthrough — all problems have carry", async ({
 });
 
 // ---------------------------------------------------------------------------
-// Bonus Test 14: Mult tap count badge increments correctly (2×3 = 6)
+// Bonus Test 14: Mult tap count badge increments correctly
+// L2 P1 is 3×1 → with the "b groups of a" convention that's 1 group of 3
+// fireflies (a×b = 3 blocks total), so the global badge counts 1..3.
 // ---------------------------------------------------------------------------
-test("Test 14: Mult tap L2 — count badge increments 1..6", async ({
+test("Test 14: Mult tap L2 — count badge increments 1..3", async ({
   page,
 }) => {
   await page.addInitScript(seedProgress([["mult", 1, 3]]));
   await goToLevel(page, "mult", 2);
   await expect(page.locator("#screen-mult-tap")).toBeVisible();
 
-  // Problem 1: 3×1 = 3. Three groups of 1. Tap them one at a time.
+  // Problem 1: 3×1 = 3 → 1 group of 3 fireflies. Tap them one at a time.
   await page.waitForTimeout(800);
 
   const total = await page.locator(".block-host.untapped").count();
-  expect(total).toBe(3); // 3 groups × 1 block
+  expect(total).toBe(3); // a×b = 3 blocks
 
   // Tap first block — badge should show "1".
   // force:true bypasses stability check (idle-wobble animation makes elements "unstable").
@@ -687,16 +759,18 @@ test("Test 14: Mult tap L2 — count badge increments 1..6", async ({
   // After tap, the block is now .tapped (not .untapped), so re-locate by tapped
   await expect(page.locator(".block-host.tapped").first().locator(".count-badge")).toHaveText("1");
 
-  // Tap rest
+  // Tap rest — the global count badge keeps incrementing across the group.
   let remaining = await page.locator(".block-host.untapped").count();
   while (remaining > 0) {
     await page.locator(".block-host.untapped").first().click({ force: true });
     await page.waitForTimeout(150);
     remaining = await page.locator(".block-host.untapped").count();
   }
-  await expect(page.locator(".total-reveal:not(.hidden)")).toBeVisible({
-    timeout: 3000,
-  });
+
+  // All 3 blocks tapped; the last badge shows the running total (3 = a×b).
+  await expect(page.locator(".block-host.tapped")).toHaveCount(3);
+  const badges = await page.locator(".block-host.tapped .count-badge").allTextContents();
+  expect(badges.map((t) => t.trim()).sort()).toEqual(["1", "2", "3"]);
 });
 
 // ---------------------------------------------------------------------------
