@@ -44,7 +44,7 @@ test('mult-tap: two-digit answer fits the TOTAL slot', async ({ page }) => {
 
 test('back button steps level → map → splash instead of leaving the site', async ({ page }) => {
   await page.setViewportSize(PHONE);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await unlockAll(page);
 
   // Navigate via the UI so browser history mirrors real play.

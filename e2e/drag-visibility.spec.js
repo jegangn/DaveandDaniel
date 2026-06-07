@@ -17,7 +17,7 @@ import { test, expect } from '@playwright/test';
 
 async function navigateToAddLevel(page) {
   await page.addInitScript(() => localStorage.clear());
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node').first().click();
   await page.waitForTimeout(600);

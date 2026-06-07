@@ -8,7 +8,7 @@ test('correct drops cycle through varied celebrations (no immediate repeats)', a
   test.setTimeout(60_000);
   await page.goto('/');
   await unlockAll(page);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
 
   // Patch the module's pick function isn't possible without source access, so
   // we instead observe behavioural variety: do 6 correct drops in a row and
@@ -68,7 +68,7 @@ test('mascot sparkles appear on correct drop with varied count', async ({ page }
   test.setTimeout(30_000);
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node[data-level="1"]').click();
   await page.waitForTimeout(500);

@@ -23,7 +23,7 @@ import { test, expect } from "@playwright/test";
  * Leaves the page on the world map.
  */
 async function goToMap(page) {
-  await page.goto("/");
+  await page.goto("/?profile=dave");
   await page.locator(".splash-play").click();
   await expect(page.locator("#screen-map")).toBeVisible();
 }
@@ -475,7 +475,7 @@ test("Test 7: Complete screen buttons — NEXT goes to L2, MAP returns to map", 
 test("Test 8: Star progress persists after page reload", async ({ page }) => {
   // Do NOT use addInitScript here — it runs on reload too and would wipe localStorage.
   // Instead, clear before initial nav via evaluate after the first page.goto.
-  await page.goto("/");
+  await page.goto("/?profile=dave");
   await page.evaluate(() => localStorage.clear());
   await page.locator(".splash-play").click();
   await expect(page.locator("#screen-map")).toBeVisible();
