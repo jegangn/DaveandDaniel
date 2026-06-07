@@ -661,6 +661,13 @@ button {
   font-size: 96px; box-shadow: var(--sh-2);
 }
 .op-chip.q { border-style: dashed; background: transparent; animation: slotPulse 1.8s var(--ease-soft) infinite; }
+/* The "= ?" answer is dropped directly into this slot in the equation header.
+   Sized to fit a two-digit answer (e.g. "20") in both orientations. */
+.mult-problem .slot {
+  width: 120px; height: 130px;
+  font-size: 76px;
+  border-radius: var(--r-lg);
+}
 .op-sym { font-size: 80px; color: var(--ink); }
 .firefly-area {
   position: absolute; top: 240px; left: 80px; width: 1120px; height: 260px;
@@ -714,30 +721,6 @@ button {
 .block-grid[data-count="5"] > :nth-child(3) { grid-column: 5 / span 2; grid-row: 1; }
 .block-grid[data-count="5"] > :nth-child(4) { grid-column: 2 / span 2; grid-row: 2; }
 .block-grid[data-count="5"] > :nth-child(5) { grid-column: 4 / span 2; grid-row: 2; }
-.total-reveal {
-  position: absolute; top: 520px; left: 50%; transform: translateX(-50%);
-  width: 380px; height: 120px;
-  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
-  display: flex; align-items: center; justify-content: center; gap: 16px;
-  box-shadow: var(--sh-2);
-  padding: 0 24px;
-}
-.total-reveal.hidden { display: none; }
-.total-reveal .display { font-size: 32px; }
-/* The single mult answer slot holds a 1- OR 2-digit answer (e.g. "20"), so size
-   it to fit two digits without overflow — roomy but not oversized. Shared by the
-   tap-count TOTAL box and the drag-groups answer box (the latter otherwise falls
-   through to the base .slot whose 110px font clips two-digit answers). */
-.total-reveal .slot,
-.ans-host .slot {
-  width: 104px; height: 104px;
-  font-size: 60px;
-  border-radius: var(--r-md);
-}
-/* "HOW MANY TOTAL?" was rendering at the default ~16px — bump it up to read clearly. */
-.ans-host .display { font-size: 30px; }
-.ans-slot-host { display: flex; gap: 8px; }
-
 /* ===== TASK 29: Multiplication Drag-Groups Level Screen ===== */
 /* Wrapper around the counting trays + mango pile. Landscape: transparent, so
    the children keep their original absolute layout. Portrait: see the portrait
@@ -794,13 +777,6 @@ button {
   background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
   padding: 24px; align-items: center; justify-content: center;
 }
-.ans-host {
-  position: absolute; top: 390px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 16px; align-items: center;
-  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
-  padding: 16px 24px; box-shadow: var(--sh-2);
-}
-.ans-host.hidden { display: none; }
 .digit-tray.hidden { display: none; }
 
 /* ===== TASK 30: Complete Screen ===== */
@@ -1056,6 +1032,11 @@ button {
 #stage[data-orient="portrait"] .op-sym {
   font-size: 54px;
 }
+#stage[data-orient="portrait"] .mult-problem .slot {
+  width: 80px; height: 90px;
+  font-size: 44px;
+  border-width: 3px;
+}
 #stage[data-orient="portrait"] .firefly-area {
   /* Wrap lily-pads into a 2-wide grid so 3–4 groups stay compact instead of a
      tall single column. The layout engine re-centres this and scales to fit. */
@@ -1080,23 +1061,6 @@ button {
 #stage[data-orient="portrait"] .block-grid[data-count="5"] .block-host {
   width: 46px;
   height: 46px;
-}
-#stage[data-orient="portrait"] .total-reveal {
-  top: auto;
-  /* Sits clearly above the digit tray (tray bottom-anchored at 16, height ~240). */
-  bottom: 290px;
-  width: 296px;
-  height: 116px;
-  padding: 0 16px;
-}
-#stage[data-orient="portrait"] .total-reveal .slot,
-#stage[data-orient="portrait"] .ans-host .slot {
-  width: 96px;
-  height: 96px;
-  font-size: 56px;
-}
-#stage[data-orient="portrait"] .ans-host .display {
-  font-size: 27px;
 }
 /* Portrait: trays + pile live inside .play-col, which the layout engine centres
    in the band between the problem and the answer box (and scales down to fit
@@ -1146,14 +1110,6 @@ button {
   min-height: 0;
   padding: 12px;
   gap: 8px;
-}
-#stage[data-orient="portrait"] .ans-host {
-  /* Sits clearly above the digit tray. Mult answers can include compound
-     tiles that wrap to 3 rows in the tray, so allow ~360px for the tray
-     plus a 24px gap. */
-  top: auto;
-  bottom: 384px;
-  padding: 10px 16px;
 }
 #stage[data-orient="portrait"] .count-chip {
   font-size: 14px;
@@ -1394,6 +1350,21 @@ button {
   opacity: 0; transition: opacity .25s var(--ease-pop);
 }
 .col-ws .carry-cell.filled { opacity: 1; }
+/* CARRYOVER — carry cells the child fills (long mult). A small dashed mini-slot
+   that mirrors the result .slot states; orange-tinted so a carry reads as distinct
+   from a result digit. (Plain .carry-cell with no .fillable stays an invisible spacer.) */
+.col-ws .carry-cell.fillable {
+  opacity: 1;
+  border: 3px dashed var(--ink-soft);
+  border-radius: var(--r-md);
+  color: #EE6A00;
+  align-self: center; justify-self: center;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.col-ws .carry-cell.fillable.inactive { opacity: .5; }
+.col-ws .carry-cell.fillable.active   { border-style: solid; border-color: var(--world-primary); animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.col-ws .carry-cell.fillable.filled   { border-style: solid; border-color: #EE6A00; animation: none; }
+.col-ws .carry-cell.fillable.flash-no { border-color: var(--gentle-no); animation: slotShake .3s var(--ease-elastic); }
 .col-ws .ws-line {
   grid-column: 1 / -1; height: 6px; background: var(--ink);
   border-radius: 3px; margin: 4px 0;
@@ -1412,6 +1383,8 @@ button {
 .lm-ws .slot { height: 80px; font-size: 58px; line-height: 80px; }
 .lm-ws .ws-op.op { font-size: 54px; }
 .lm-ws .carry-cell { height: 36px; font-size: 26px; line-height: 36px; }
+.lm-ws .carry-cell.fillable { width: 44px; height: 44px; font-size: 28px; }
+#stage[data-orient="portrait"] .lm-ws .carry-cell.fillable { width: 40px; height: 40px; font-size: 26px; }
 .lm-ws .regroup-mark { font-size: 26px; }
 #stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
 #stage[data-orient="portrait"] .lm-ws .cell,

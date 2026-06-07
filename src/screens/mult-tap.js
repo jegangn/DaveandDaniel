@@ -37,7 +37,6 @@ export function mount(stage, ctx, router) {
     </div>
     <div class="mult-problem"></div>
     <div class="firefly-area"></div>
-    <div class="total-reveal hidden"><span class="display">TOTAL</span><div class="ans-slot-host"></div></div>
     <div class="digit-tray"></div>
     <div class="corner-mascot"></div>
   `;
@@ -72,20 +71,21 @@ export function mount(stage, ctx, router) {
       <div class="op-sym display">×</div>
       <div class="op-chip display">${p.b}</div>
       <div class="op-sym display">=</div>
-      <div class="op-chip q display">?</div>
+      <div class="slot active" data-index="0"></div>
     `;
 
     const area = sec.querySelector(".firefly-area");
     area.innerHTML = "";
     const blockEls = [];
-    for (let g = 0; g < p.a; g++) {
+    // "a × b" = a items per group, shown b times → b groups of a items each.
+    for (let g = 0; g < p.b; g++) {
       const pad = document.createElement("div");
       pad.className = "lily-group";
       pad.insertAdjacentHTML("beforeend", lilypad());
       const blocks = document.createElement("div");
       blocks.className = "block-grid";
-      blocks.dataset.count = String(p.b);
-      for (let i = 0; i < p.b; i++) {
+      blocks.dataset.count = String(p.a);
+      for (let i = 0; i < p.a; i++) {
         const wrap = document.createElement("div");
         wrap.className = "block-host untapped";
         wrap.dataset.groupIndex = String(g);
@@ -115,19 +115,11 @@ export function mount(stage, ctx, router) {
     tapBlock(wrap, globalCount);
   }
 
+  // Build the digit tray. The single answer slot now lives in the equation
+  // header (created in renderProblem), so the kid drops the answer straight
+  // into the box after "=" — there's no separate panel to reveal.
   function showReveal() {
     const p = problems[idx];
-    const reveal = sec.querySelector(".total-reveal");
-    const host = reveal.querySelector(".ans-slot-host");
-    // Single answer slot — whether the answer is one digit or two, the
-    // kid drags a single tile (digit tile for <10, compound tile for ≥10).
-    host.innerHTML = `<div class="slot active" data-index="0"></div>`;
-    reveal.classList.remove("hidden");
-    reveal.animate(
-      [{ opacity: 0, transform: "translateY(20px) scale(0.9)" }, { opacity: 1, transform: "translateY(0) scale(1)" }],
-      { duration: 400, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
-    );
-
     const tray = sec.querySelector(".digit-tray");
     tray.innerHTML = "";
     tray.classList.remove("two-row");

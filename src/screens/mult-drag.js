@@ -20,6 +20,7 @@ export function mount(stage, ctx, router) {
   let totalWrong = 0;
   let dragMgr = null;
   let trayWrongOnCurrentSlot = 0;
+  let landedCount = 0;
   const groupContents = [];
   let groupRowFade = null;
 
@@ -47,16 +48,6 @@ export function mount(stage, ctx, router) {
   const blockPile = document.createElement("div");
   blockPile.className = "block-pile";
 
-  const ansHost = document.createElement("div");
-  ansHost.className = "ans-host hidden";
-  const ansLabel = document.createElement("span");
-  ansLabel.className = "display";
-  ansLabel.textContent = "HOW MANY TOTAL?";
-  const ansSlotHost = document.createElement("div");
-  ansSlotHost.className = "ans-slot-host";
-  ansHost.appendChild(ansLabel);
-  ansHost.appendChild(ansSlotHost);
-
   const digitTray = document.createElement("div");
   digitTray.className = "digit-tray hidden";
 
@@ -75,7 +66,6 @@ export function mount(stage, ctx, router) {
   sec.appendChild(topbar);
   sec.appendChild(multProblem);
   sec.appendChild(playCol);
-  sec.appendChild(ansHost);
   sec.appendChild(digitTray);
   sec.appendChild(cornerMascot);
 
@@ -97,6 +87,7 @@ export function mount(stage, ctx, router) {
     trayWrongOnCurrentSlot = 0;
     const p = problems[idx];
     groupContents.length = 0;
+    landedCount = 0;
 
     multProblem.textContent = "";
     const chipA = document.createElement("div");
@@ -111,32 +102,34 @@ export function mount(stage, ctx, router) {
     const symEq = document.createElement("div");
     symEq.className = "op-sym display";
     symEq.textContent = "=";
-    const chipQ = document.createElement("div");
-    chipQ.className = "op-chip q display";
-    chipQ.textContent = "?";
+    // The answer drops straight into this slot, right after the "=".
+    const ansSlot = document.createElement("div");
+    ansSlot.className = "slot active";
+    ansSlot.dataset.index = "0";
     multProblem.appendChild(chipA);
     multProblem.appendChild(symMult);
     multProblem.appendChild(chipB);
     multProblem.appendChild(symEq);
-    multProblem.appendChild(chipQ);
+    multProblem.appendChild(ansSlot);
 
     if (groupRowFade) { groupRowFade.cancel(); groupRowFade = null; }
     groupRow.textContent = "";
-    for (let g = 0; g < p.a; g++) {
+    // "a × b" = a items per group, shown b times → b groups of a items each.
+    for (let g = 0; g < p.b; g++) {
       const tray = document.createElement("div");
       tray.className = "group-tray";
       tray.dataset.idx = String(g);
-      for (let i = 0; i < p.b; i++) {
+      for (let i = 0; i < p.a; i++) {
         const ghost = document.createElement("div");
         ghost.className = "ghost";
         tray.appendChild(ghost);
       }
       const chip = document.createElement("div");
       chip.className = "count-chip";
-      chip.textContent = `0 / ${p.b}`;
+      chip.textContent = `0 / ${p.a}`;
       tray.appendChild(chip);
       groupRow.appendChild(tray);
-      groupContents.push({ filled: 0, needed: p.b });
+      groupContents.push({ filled: 0, needed: p.a });
     }
 
     blockPile.textContent = "";
@@ -245,24 +238,20 @@ export function mount(stage, ctx, router) {
       planted.style.left = `${slot.offsetLeft}px`;
       planted.style.top = `${slot.offsetTop}px`;
       tray.appendChild(planted);
+      landedCount++;
+      sfx.blockTap(landedCount); // rising-pitch counting tone as each fruit lands
       if (groupContents.every((g) => g.filled === g.needed)) {
         setTimeout(showAnswerPhase, 600);
       }
     };
   }
 
-  // Build the answer slot + digit tray. Called at the start of every
-  // problem. Single slot whether the answer is one digit or two — the kid
-  // drags one tile (digit for <10, compound for ≥10).
+  // Build the digit tray. Called at the start of every problem. The answer
+  // slot itself lives in the equation header (created in renderProblem), so
+  // the kid drops one tile (digit for <10, compound for ≥10) into the box
+  // right after "=".
   function setupAnswerArea() {
     const p = problems[idx];
-    ansSlotHost.textContent = "";
-    const slot = document.createElement("div");
-    slot.className = "slot active";
-    slot.dataset.index = "0";
-    ansSlotHost.appendChild(slot);
-    ansHost.classList.remove("hidden");
-
     digitTray.classList.remove("hidden", "two-row");
     digitTray.textContent = "";
     if (p.answer >= 10) {

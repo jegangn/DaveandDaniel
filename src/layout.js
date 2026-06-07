@@ -18,7 +18,6 @@
 // elements here needs no changes in the drag code.
 
 const TRAY_BOTTOM = 16; // CSS: portrait tray is pinned bottom:16
-const BOX_GAP = 20; // gap between the answer box and the tray top
 const BAND_PAD = 14; // breathing room around the centred play band
 const MAX_W = 112; // biggest option-tile width (logical px)
 const MIN_W = 84; // smallest — 84 × 0.444 (iPhone SE scale) ≈ 37px; most phones larger
@@ -149,40 +148,34 @@ export function layoutAddSub(stage, sec) {
 export function layoutMultTap(stage, sec) {
   if (!sec || !sec.isConnected) return;
   const tray = sec.querySelector(".digit-tray");
-  const reveal = sec.querySelector(".total-reveal");
   const firefly = sec.querySelector(".firefly-area");
   if (!isPortrait(stage)) {
     if (tray) {
       clearTileSizes(tray.querySelectorAll(".tile"));
       tray.style.height = "";
     }
-    clearInline(reveal, ["bottom", "top"]);
     clearInline(firefly, ["position", "left", "top", "transform"]);
     return;
   }
   const H = stage.offsetHeight;
   if (H < 400 || !tray) return;
   const trayH = fitTray(stage, tray, maxTrayHeight(H));
-  if (reveal && !reveal.classList.contains("hidden")) {
-    reveal.style.top = "auto";
-    reveal.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
-  }
+  // The answer box now lives in the equation header, so the play band runs
+  // from below the header straight down to the digit tray.
   const bandTop = headerBottom(stage, sec) + BAND_PAD;
-  const boxTop = reveal ? logicalRect(stage, reveal).top : H - TRAY_BOTTOM - trayH;
+  const boxTop = H - TRAY_BOTTOM - trayH;
   centerPlay(stage, firefly, bandTop, boxTop - BAND_PAD, true);
 }
 
 export function layoutMultDrag(stage, sec) {
   if (!sec || !sec.isConnected) return;
   const tray = sec.querySelector(".digit-tray");
-  const ansHost = sec.querySelector(".ans-host");
   const playCol = sec.querySelector(".play-col");
   if (!isPortrait(stage)) {
     if (tray) {
       clearTileSizes(tray.querySelectorAll(".tile"));
       tray.style.height = "";
     }
-    clearInline(ansHost, ["bottom", "top"]);
     clearInline(playCol, ["position", "left", "top", "transform"]);
     return;
   }
@@ -190,12 +183,9 @@ export function layoutMultDrag(stage, sec) {
   if (H < 400 || !tray) return;
   const trayHidden = tray.classList.contains("hidden");
   const trayH = trayHidden ? 0 : fitTray(stage, tray, maxTrayHeight(H));
-  let boxTop = H - TRAY_BOTTOM - trayH;
-  if (ansHost && !ansHost.classList.contains("hidden")) {
-    ansHost.style.top = "auto";
-    ansHost.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
-    boxTop = logicalRect(stage, ansHost).top;
-  }
+  // The answer box now lives in the equation header, so the play band runs
+  // from below the header straight down to the digit tray.
+  const boxTop = H - TRAY_BOTTOM - trayH;
   const bandTop = headerBottom(stage, sec) + BAND_PAD;
   centerPlay(stage, playCol, bandTop, boxTop - BAND_PAD, true);
 }
