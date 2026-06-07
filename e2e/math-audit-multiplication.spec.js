@@ -149,16 +149,18 @@ for (let level = 4; level <= 6; level++) {
         `L${level} P${i + 1}: expected ${groups} group trays, got ${trayCount}`
       ).toBe(groups);
 
-      // --- Optional pile-counting: fill each group tray with `perGroup` blocks ---
+      // --- Pile-counting: fill each group tray with `perGroup` blocks ---
       // Tapping a pile mango auto-flies a copy into the next empty slot
       // (onPileTap fills group 0 fully, then group 1, …), so a sequence of
       // taps fills the trays in order. The pile never shrinks, so we always
       // tap the first pile mango.
       //
-      // Counting is OPTIONAL in the app (it does not gate answering). For the
-      // largest answer (5×5=25) the two-row compound digit tray overlaps the
-      // mango pile in landscape (pre-existing layout quirk), so the pile can't
-      // be tapped — in that case we skip counting and verify answer entry only.
+      // Counting is optional in the app (it does not gate answering), but the
+      // pile must always be tappable — including the largest answer (5×5=25),
+      // whose two-row compound digit tray used to overlap and bury the pile in
+      // landscape. That's fixed (the mult two-row tray is right-sized and the
+      // pile lifts into the gap above it), so we assert reachability here to
+      // catch any regression rather than silently skipping the count.
       const pileReachable = await page.evaluate(() => {
         const pile = document.querySelector(".block-pile .block-host");
         if (!pile) return false;
@@ -166,19 +168,21 @@ for (let level = 4; level <= 6; level++) {
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         return !!(hit && hit.closest(".block-pile"));
       });
-      if (pileReachable) {
-        for (let g = 0; g < groups; g++) {
-          for (let fill = 0; fill < perGroup; fill++) {
-            await page.locator(".block-pile .block-host").first().click({ force: true });
-            await page.waitForTimeout(220);
-          }
-
-          // Tray chip should show the filled state
-          await expect(
-            page.locator(`.group-tray[data-idx="${g}"] .count-chip`),
-            `L${level} P${i + 1} tray ${g}: expected "★ ${perGroup}"`
-          ).toHaveText(`★ ${perGroup}`, { timeout: 3000 });
+      expect(
+        pileReachable,
+        `L${level} P${i + 1}: pile mango must be tappable, not covered by the digit tray`
+      ).toBe(true);
+      for (let g = 0; g < groups; g++) {
+        for (let fill = 0; fill < perGroup; fill++) {
+          await page.locator(".block-pile .block-host").first().click({ force: true });
+          await page.waitForTimeout(220);
         }
+
+        // Tray chip should show the filled state
+        await expect(
+          page.locator(`.group-tray[data-idx="${g}"] .count-chip`),
+          `L${level} P${i + 1} tray ${g}: expected "★ ${perGroup}"`
+        ).toHaveText(`★ ${perGroup}`, { timeout: 3000 });
       }
 
       // The answer slot lives in the equation header (no separate panel).

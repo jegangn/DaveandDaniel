@@ -791,6 +791,23 @@ button {
 }
 .digit-tray.hidden { display: none; }
 
+/* 5×5 = 25 is the only mult seed whose answer tray wraps to two rows. The shared
+   .two-row height (232px) is sized for addition's 96px tiles — far taller than
+   the 76px mult-option tiles need — so the bottom-anchored tray rises to top:548
+   and buries the mango pile (top:540), killing the optional pile-counting tap.
+   Right-size the tray for the smaller tiles, then lift + compress the pile into
+   the gap between the group row (bottom ~462) and the shorter tray (top ~584) so
+   its mangoes stay tappable. Landscape only — portrait reflows both via the
+   layout engine. */
+#stage:not([data-orient="portrait"]) #screen-mult-drag .digit-tray.two-row {
+  height: 196px;
+}
+#stage:not([data-orient="portrait"]) #screen-mult-drag.two-row-active .block-pile {
+  top: 470px;
+  height: 100px;
+  padding: 12px 24px;
+}
+
 /* ===== TASK 30: Complete Screen ===== */
 #screen-complete { background: radial-gradient(100% 70% at 50% 0%, color-mix(in srgb, var(--world-sky) 55%, #fff), var(--world-sky)); }
 .complete-title {
@@ -4385,6 +4402,7 @@ button {
     function setupAnswerArea() {
       const p = problems[idx];
       digitTray.classList.remove("hidden", "two-row");
+      sec.classList.remove("two-row-active");
       digitTray.textContent = "";
       if (p.answer >= 10) {
         const values = compoundOptions2(p.answer);
@@ -4398,6 +4416,7 @@ button {
         };
         if (values.length > 11) {
           digitTray.classList.add("two-row");
+          sec.classList.add("two-row-active");
           const half = Math.ceil(values.length / 2);
           const row1 = document.createElement("div");
           row1.className = "tile-row";

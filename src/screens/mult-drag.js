@@ -253,6 +253,7 @@ export function mount(stage, ctx, router) {
   function setupAnswerArea() {
     const p = problems[idx];
     digitTray.classList.remove("hidden", "two-row");
+    sec.classList.remove("two-row-active");
     digitTray.textContent = "";
     if (p.answer >= 10) {
       const values = compoundOptions(p.answer);
@@ -266,6 +267,7 @@ export function mount(stage, ctx, router) {
       };
       if (values.length > 11) {
         digitTray.classList.add("two-row");
+        sec.classList.add("two-row-active");
         const half = Math.ceil(values.length / 2);
         const row1 = document.createElement("div"); row1.className = "tile-row";
         const row2 = document.createElement("div"); row2.className = "tile-row";
