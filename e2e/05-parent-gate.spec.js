@@ -15,14 +15,14 @@ async function openParentGate(page) {
 }
 
 test('long-press cog opens parent gate', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await openParentGate(page);
   await expect(page.locator('.parent-gate-card')).toBeVisible();
   await expect(page.locator('h2.display')).toHaveText('PARENTS ONLY');
 });
 
 test('parent gate: wrong answer shows error', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await openParentGate(page);
 
   // Find the question text and compute correct answer to identify wrong buttons
@@ -50,7 +50,7 @@ test('parent gate: wrong answer shows error', async ({ page }) => {
 });
 
 test('parent gate: correct answer opens settings card', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await openParentGate(page);
 
   // Parse the sum from the question

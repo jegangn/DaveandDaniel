@@ -6,7 +6,7 @@ test.use({ viewport: { width: 1280, height: 800 } });
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await unlockAll(page);
-  await page.goto('/');
+  await page.goto('/?profile=dave');
 });
 
 test('compound row fits inside tray (no overflow)', async ({ page }) => {

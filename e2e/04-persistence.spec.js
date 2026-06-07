@@ -9,7 +9,7 @@ test('localStorage persists star progress across reload', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('bm.stars.add.1', '3'));
 
   // Reload and navigate to map
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
 
   // L1 node in first world should have a star ribbon (stars > 0)
@@ -28,7 +28,7 @@ test('star meter on map reflects stored total', async ({ page }) => {
     localStorage.setItem('bm.stars.add.2', '2');
   });
 
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
 
   // Total stars should be 5
@@ -39,7 +39,7 @@ test('star meter on map reflects stored total', async ({ page }) => {
 test('fresh save: all worlds L2-L6 are locked', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
 
   // All three worlds should have L2 locked
@@ -51,7 +51,7 @@ test('fresh save: all worlds L2-L6 are locked', async ({ page }) => {
 });
 
 test('world map home button returns to splash', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await expect(page.locator('#screen-map')).toBeVisible();
 

@@ -52,7 +52,7 @@ for (const vp of [PHONE, SE, TABLET]) {
     await unlockAll(page);
 
     // Splash
-    await page.goto('/');
+    await page.goto('/?profile=dave');
     await page.waitForTimeout(200);
     await shot(page, '01-splash', vp);
 

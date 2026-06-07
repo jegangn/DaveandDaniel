@@ -37,7 +37,7 @@ async function pointerDragTo(page, sourceSelector, targetSelector) {
 }
 
 test('Banana Hills L1 opens addition level', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node').first().click();
   await expect(page.locator('#screen-add')).toBeVisible();
@@ -46,7 +46,7 @@ test('Banana Hills L1 opens addition level', async ({ page }) => {
 });
 
 test('addition L1 problem 1 (12 + 3 = 15): drag correct ones digit fills slot', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node').first().click();
   await expect(page.locator('.worksheet')).toBeVisible();
@@ -73,7 +73,7 @@ test('addition L1 problem 1 (12 + 3 = 15): drag correct ones digit fills slot', 
 });
 
 test('addition: wrong drop bounces back, slot stays empty', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node').first().click();
   await expect(page.locator('.worksheet')).toBeVisible();
@@ -88,7 +88,7 @@ test('addition: wrong drop bounces back, slot stays empty', async ({ page }) => 
 });
 
 test('addition: progress dots advance after completing a problem', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').click();
   await page.locator('.world-panel').first().locator('.level-node').first().click();
   await expect(page.locator('.worksheet')).toBeVisible();
