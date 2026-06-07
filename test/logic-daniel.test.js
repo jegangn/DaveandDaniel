@@ -296,3 +296,27 @@ test("sumCarries: carries (always 1) of adding two partials, keyed by grid colum
   expect(sumCarries(99, 99)).toEqual({ 1: 1, 0: 1 });
   expect(sumCarries(12, 13)).toEqual({});
 });
+
+test("buildSequence: interleaves carries between result digits, right-to-left", () => {
+  const cells392 = placeDigits(392, 1, 4);
+  expect(buildSequence(cells392, { 1: 4, 0: 3 })).toEqual([
+    { kind: "result", col: 2, di: 2, value: 2 },
+    { kind: "carry",  col: 1, value: 4 },
+    { kind: "result", col: 1, di: 1, value: 9 },
+    { kind: "carry",  col: 0, value: 3 },
+    { kind: "result", col: 0, di: 0, value: 3 },
+  ]);
+  const cells4144 = placeDigits(4144, 0, 4);
+  expect(buildSequence(cells4144, { 0: 1 })).toEqual([
+    { kind: "result", col: 3, di: 3, value: 4 },
+    { kind: "result", col: 2, di: 2, value: 4 },
+    { kind: "result", col: 1, di: 1, value: 1 },
+    { kind: "carry",  col: 0, value: 1 },
+    { kind: "result", col: 0, di: 0, value: 4 },
+  ]);
+  const cells48 = placeDigits(48, 0, 2);
+  expect(buildSequence(cells48, {})).toEqual([
+    { kind: "result", col: 1, di: 1, value: 8 },
+    { kind: "result", col: 0, di: 0, value: 4 },
+  ]);
+});

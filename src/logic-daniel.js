@@ -151,8 +151,17 @@ export function sumCarries(addA, addB) {
 
 // Ordered fill steps for one row: walk result columns right-to-left (di high->low),
 // emitting a column's incoming carry (if any) just before that column's result.
+// The ones column never has an incoming carry, so a row always starts AND ends
+// with a result step.
 export function buildSequence(cells, carries = {}) {
-  throw new Error("not implemented");
+  const steps = [];
+  const len = cells.filter(Boolean).length; // number of result digits
+  for (let di = len - 1; di >= 0; di--) {
+    const col = cells.findIndex((c) => c && c.di === di);
+    if (carries[col] != null) steps.push({ kind: "carry", col, value: carries[col] });
+    steps.push({ kind: "result", col, di, value: cells[col].digit });
+  }
+  return steps;
 }
 
 // ----- Long multiplication ---------------------------------------------------
