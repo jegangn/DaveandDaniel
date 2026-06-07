@@ -177,12 +177,24 @@ export function analyzeLongMult(a, b) {
   });
   const needsSum = partials.length > 1;
   const product = a * b;
+  const N = String(product).length;
   let sum = null;
   if (needsSum) {
     const add = analyzeColumnsAdd(partials[0].value, partials[1].value);
     sum = { value: product, width: add.width, carryOut: add.carryOut };
   }
-  return { a, b, product, partials, needsSum, sum };
+  // CARRYOVER: attach grid placement, per-column carries, and ordered fill steps.
+  for (const p of partials) {
+    p.cells = placeDigits(p.rowDigits, p.shift, N);
+    p.carries = partialCarries(a, p.digit, p.shift, N);
+    p.steps = buildSequence(p.cells, p.carries);
+  }
+  if (needsSum) {
+    sum.cells = placeDigits(product, 0, N);
+    sum.carries = sumCarries(partials[0].value, partials[1].value);
+    sum.steps = buildSequence(sum.cells, sum.carries);
+  }
+  return { a, b, product, N, partials, needsSum, sum };
 }
 
 // ----- Short ("bus-stop") division, single-digit divisor --------------------

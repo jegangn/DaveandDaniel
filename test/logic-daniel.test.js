@@ -320,3 +320,28 @@ test("buildSequence: interleaves carries between result digits, right-to-left", 
     { kind: "result", col: 0, di: 0, value: 4 },
   ]);
 });
+
+test("analyzeLongMult: attaches N + per-phase cells/carries/steps (56 × 74)", () => {
+  const r = analyzeLongMult(56, 74); // 224 + 3920 = 4144
+  expect(r.N).toBe(4);
+  expect(r.partials[0].carries).toEqual({ 2: 2, 1: 2 });
+  expect(r.partials[1].carries).toEqual({ 1: 4, 0: 3 });
+  expect(r.sum.carries).toEqual({ 0: 1 });
+  expect(r.partials[1].steps).toEqual([
+    { kind: "result", col: 2, di: 2, value: 2 },
+    { kind: "carry",  col: 1, value: 4 },
+    { kind: "result", col: 1, di: 1, value: 9 },
+    { kind: "carry",  col: 0, value: 3 },
+    { kind: "result", col: 0, di: 0, value: 3 },
+  ]);
+  expect(r.product).toBe(4144);
+  expect(r.partials.map((p) => p.rowDigits)).toEqual([224, 392]);
+});
+
+test("analyzeLongMult: ×1-digit still has no sum, but the single partial carries", () => {
+  const r = analyzeLongMult(234, 7); // 1638
+  expect(r.N).toBe(4);
+  expect(r.sum).toBeNull();
+  expect(r.partials[0].carries).toEqual({ 2: 2, 1: 2, 0: 1 });
+  expect(r.partials[0].steps.length).toBeGreaterThan(0);
+});
