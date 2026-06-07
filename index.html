@@ -673,6 +673,13 @@ button {
   font-size: 96px; box-shadow: var(--sh-2);
 }
 .op-chip.q { border-style: dashed; background: transparent; animation: slotPulse 1.8s var(--ease-soft) infinite; }
+/* The "= ?" answer is dropped directly into this slot in the equation header.
+   Sized to fit a two-digit answer (e.g. "20") in both orientations. */
+.mult-problem .slot {
+  width: 120px; height: 130px;
+  font-size: 76px;
+  border-radius: var(--r-lg);
+}
 .op-sym { font-size: 80px; color: var(--ink); }
 .firefly-area {
   position: absolute; top: 240px; left: 80px; width: 1120px; height: 260px;
@@ -726,30 +733,6 @@ button {
 .block-grid[data-count="5"] > :nth-child(3) { grid-column: 5 / span 2; grid-row: 1; }
 .block-grid[data-count="5"] > :nth-child(4) { grid-column: 2 / span 2; grid-row: 2; }
 .block-grid[data-count="5"] > :nth-child(5) { grid-column: 4 / span 2; grid-row: 2; }
-.total-reveal {
-  position: absolute; top: 520px; left: 50%; transform: translateX(-50%);
-  width: 380px; height: 120px;
-  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
-  display: flex; align-items: center; justify-content: center; gap: 16px;
-  box-shadow: var(--sh-2);
-  padding: 0 24px;
-}
-.total-reveal.hidden { display: none; }
-.total-reveal .display { font-size: 32px; }
-/* The single mult answer slot holds a 1- OR 2-digit answer (e.g. "20"), so size
-   it to fit two digits without overflow — roomy but not oversized. Shared by the
-   tap-count TOTAL box and the drag-groups answer box (the latter otherwise falls
-   through to the base .slot whose 110px font clips two-digit answers). */
-.total-reveal .slot,
-.ans-host .slot {
-  width: 104px; height: 104px;
-  font-size: 60px;
-  border-radius: var(--r-md);
-}
-/* "HOW MANY TOTAL?" was rendering at the default ~16px — bump it up to read clearly. */
-.ans-host .display { font-size: 30px; }
-.ans-slot-host { display: flex; gap: 8px; }
-
 /* ===== TASK 29: Multiplication Drag-Groups Level Screen ===== */
 /* Wrapper around the counting trays + mango pile. Landscape: transparent, so
    the children keep their original absolute layout. Portrait: see the portrait
@@ -806,13 +789,6 @@ button {
   background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
   padding: 24px; align-items: center; justify-content: center;
 }
-.ans-host {
-  position: absolute; top: 390px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 16px; align-items: center;
-  background: var(--bg-card); border: 4px solid var(--ink); border-radius: var(--r-lg);
-  padding: 16px 24px; box-shadow: var(--sh-2);
-}
-.ans-host.hidden { display: none; }
 .digit-tray.hidden { display: none; }
 
 /* ===== TASK 30: Complete Screen ===== */
@@ -1068,6 +1044,11 @@ button {
 #stage[data-orient="portrait"] .op-sym {
   font-size: 54px;
 }
+#stage[data-orient="portrait"] .mult-problem .slot {
+  width: 80px; height: 90px;
+  font-size: 44px;
+  border-width: 3px;
+}
 #stage[data-orient="portrait"] .firefly-area {
   /* Wrap lily-pads into a 2-wide grid so 3–4 groups stay compact instead of a
      tall single column. The layout engine re-centres this and scales to fit. */
@@ -1092,23 +1073,6 @@ button {
 #stage[data-orient="portrait"] .block-grid[data-count="5"] .block-host {
   width: 46px;
   height: 46px;
-}
-#stage[data-orient="portrait"] .total-reveal {
-  top: auto;
-  /* Sits clearly above the digit tray (tray bottom-anchored at 16, height ~240). */
-  bottom: 290px;
-  width: 296px;
-  height: 116px;
-  padding: 0 16px;
-}
-#stage[data-orient="portrait"] .total-reveal .slot,
-#stage[data-orient="portrait"] .ans-host .slot {
-  width: 96px;
-  height: 96px;
-  font-size: 56px;
-}
-#stage[data-orient="portrait"] .ans-host .display {
-  font-size: 27px;
 }
 /* Portrait: trays + pile live inside .play-col, which the layout engine centres
    in the band between the problem and the answer box (and scales down to fit
@@ -1158,14 +1122,6 @@ button {
   min-height: 0;
   padding: 12px;
   gap: 8px;
-}
-#stage[data-orient="portrait"] .ans-host {
-  /* Sits clearly above the digit tray. Mult answers can include compound
-     tiles that wrap to 3 rows in the tray, so allow ~360px for the tray
-     plus a 24px gap. */
-  top: auto;
-  bottom: 384px;
-  padding: 10px 16px;
 }
 #stage[data-orient="portrait"] .count-chip {
   font-size: 14px;
@@ -1406,6 +1362,21 @@ button {
   opacity: 0; transition: opacity .25s var(--ease-pop);
 }
 .col-ws .carry-cell.filled { opacity: 1; }
+/* CARRYOVER — carry cells the child fills (long mult). A small dashed mini-slot
+   that mirrors the result .slot states; orange-tinted so a carry reads as distinct
+   from a result digit. (Plain .carry-cell with no .fillable stays an invisible spacer.) */
+.col-ws .carry-cell.fillable {
+  opacity: 1;
+  border: 3px dashed var(--ink-soft);
+  border-radius: var(--r-md);
+  color: #EE6A00;
+  align-self: center; justify-self: center;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.col-ws .carry-cell.fillable.inactive { opacity: .5; }
+.col-ws .carry-cell.fillable.active   { border-style: solid; border-color: var(--world-primary); animation: slotPulse 1.8s var(--ease-soft) infinite; }
+.col-ws .carry-cell.fillable.filled   { border-style: solid; border-color: #EE6A00; animation: none; }
+.col-ws .carry-cell.fillable.flash-no { border-color: var(--gentle-no); animation: slotShake .3s var(--ease-elastic); }
 .col-ws .ws-line {
   grid-column: 1 / -1; height: 6px; background: var(--ink);
   border-radius: 3px; margin: 4px 0;
@@ -1424,6 +1395,8 @@ button {
 .lm-ws .slot { height: 80px; font-size: 58px; line-height: 80px; }
 .lm-ws .ws-op.op { font-size: 54px; }
 .lm-ws .carry-cell { height: 36px; font-size: 26px; line-height: 36px; }
+.lm-ws .carry-cell.fillable { width: 44px; height: 44px; font-size: 28px; }
+#stage[data-orient="portrait"] .lm-ws .carry-cell.fillable { width: 40px; height: 40px; font-size: 26px; }
 .lm-ws .regroup-mark { font-size: 26px; }
 #stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
 #stage[data-orient="portrait"] .lm-ws .cell,
@@ -2480,7 +2453,7 @@ button {
     };
   }
   function createDragManager({ getTargets, onPickup, onDrop }) {
-    let dragging = null;
+    const drags = /* @__PURE__ */ new Map();
     function start(e, sourceEl, payload) {
       e.preventDefault();
       const tileRect = sourceEl.getBoundingClientRect();
@@ -2501,8 +2474,11 @@ button {
       dragEl.style.pointerEvents = "none";
       stage2.appendChild(dragEl);
       sourceEl.style.visibility = "hidden";
-      dragging = { dragEl, sourceEl, payload, origin, offsetX, offsetY, pointerId: e.pointerId };
-      sourceEl.setPointerCapture?.(e.pointerId);
+      drags.set(e.pointerId, { dragEl, sourceEl, payload, origin, offsetX, offsetY });
+      try {
+        sourceEl.setPointerCapture?.(e.pointerId);
+      } catch {
+      }
       onPickup?.(payload, dragEl);
       dragEl.classList.add("dragging");
       window.addEventListener("pointermove", move);
@@ -2510,23 +2486,26 @@ button {
       window.addEventListener("pointercancel", end);
     }
     function move(e) {
-      if (!dragging || e.pointerId !== dragging.pointerId) return;
-      const { dragEl, offsetX, offsetY } = dragging;
+      const d = drags.get(e.pointerId);
+      if (!d) return;
       const p = toStageLocal(e.clientX, e.clientY);
-      dragEl.style.left = `${p.x - offsetX}px`;
-      dragEl.style.top = `${p.y - offsetY}px`;
+      d.dragEl.style.left = `${p.x - d.offsetX}px`;
+      d.dragEl.style.top = `${p.y - d.offsetY}px`;
     }
     function end(e) {
-      if (!dragging || e.pointerId !== dragging.pointerId) return;
-      const { dragEl, sourceEl, payload, origin } = dragging;
+      const d = drags.get(e.pointerId);
+      if (!d) return;
+      drags.delete(e.pointerId);
+      const { dragEl, sourceEl, payload, origin } = d;
       const targets = getTargets();
       const target = findDropTarget(targets, e.clientX, e.clientY, 40);
       dragEl.classList.remove("dragging");
       sourceEl.style.visibility = "";
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-      dragging = null;
+      if (drags.size === 0) {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+      }
       onDrop?.(payload, target, dragEl, origin, { sourceEl });
     }
     return { start };
@@ -3340,7 +3319,6 @@ button {
 
   // src/layout.js
   var TRAY_BOTTOM = 16;
-  var BOX_GAP = 20;
   var BAND_PAD = 14;
   var MAX_W = 112;
   var MIN_W = 84;
@@ -3443,39 +3421,31 @@ button {
   function layoutMultTap(stage2, sec) {
     if (!sec || !sec.isConnected) return;
     const tray = sec.querySelector(".digit-tray");
-    const reveal = sec.querySelector(".total-reveal");
     const firefly2 = sec.querySelector(".firefly-area");
     if (!isPortrait(stage2)) {
       if (tray) {
         clearTileSizes(tray.querySelectorAll(".tile"));
         tray.style.height = "";
       }
-      clearInline(reveal, ["bottom", "top"]);
       clearInline(firefly2, ["position", "left", "top", "transform"]);
       return;
     }
     const H = stage2.offsetHeight;
     if (H < 400 || !tray) return;
     const trayH = fitTray(stage2, tray, maxTrayHeight(H));
-    if (reveal && !reveal.classList.contains("hidden")) {
-      reveal.style.top = "auto";
-      reveal.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
-    }
     const bandTop = headerBottom(stage2, sec) + BAND_PAD;
-    const boxTop = reveal ? logicalRect(stage2, reveal).top : H - TRAY_BOTTOM - trayH;
+    const boxTop = H - TRAY_BOTTOM - trayH;
     centerPlay(stage2, firefly2, bandTop, boxTop - BAND_PAD, true);
   }
   function layoutMultDrag(stage2, sec) {
     if (!sec || !sec.isConnected) return;
     const tray = sec.querySelector(".digit-tray");
-    const ansHost = sec.querySelector(".ans-host");
     const playCol = sec.querySelector(".play-col");
     if (!isPortrait(stage2)) {
       if (tray) {
         clearTileSizes(tray.querySelectorAll(".tile"));
         tray.style.height = "";
       }
-      clearInline(ansHost, ["bottom", "top"]);
       clearInline(playCol, ["position", "left", "top", "transform"]);
       return;
     }
@@ -3483,12 +3453,7 @@ button {
     if (H < 400 || !tray) return;
     const trayHidden = tray.classList.contains("hidden");
     const trayH = trayHidden ? 0 : fitTray(stage2, tray, maxTrayHeight(H));
-    let boxTop = H - TRAY_BOTTOM - trayH;
-    if (ansHost && !ansHost.classList.contains("hidden")) {
-      ansHost.style.top = "auto";
-      ansHost.style.bottom = `${TRAY_BOTTOM + trayH + BOX_GAP}px`;
-      boxTop = logicalRect(stage2, ansHost).top;
-    }
+    const boxTop = H - TRAY_BOTTOM - trayH;
     const bandTop = headerBottom(stage2, sec) + BAND_PAD;
     centerPlay(stage2, playCol, bandTop, boxTop - BAND_PAD, true);
   }
@@ -4047,7 +4012,6 @@ button {
     </div>
     <div class="mult-problem"></div>
     <div class="firefly-area"></div>
-    <div class="total-reveal hidden"><span class="display">TOTAL</span><div class="ans-slot-host"></div></div>
     <div class="digit-tray"></div>
     <div class="corner-mascot"></div>
   `;
@@ -4077,19 +4041,19 @@ button {
       <div class="op-sym display">\xD7</div>
       <div class="op-chip display">${p.b}</div>
       <div class="op-sym display">=</div>
-      <div class="op-chip q display">?</div>
+      <div class="slot active" data-index="0"></div>
     `;
       const area = sec.querySelector(".firefly-area");
       area.innerHTML = "";
       const blockEls = [];
-      for (let g = 0; g < p.a; g++) {
+      for (let g = 0; g < p.b; g++) {
         const pad = document.createElement("div");
         pad.className = "lily-group";
         pad.insertAdjacentHTML("beforeend", lilypad());
         const blocks = document.createElement("div");
         blocks.className = "block-grid";
-        blocks.dataset.count = String(p.b);
-        for (let i = 0; i < p.b; i++) {
+        blocks.dataset.count = String(p.a);
+        for (let i = 0; i < p.a; i++) {
           const wrap = document.createElement("div");
           wrap.className = "block-host untapped";
           wrap.dataset.groupIndex = String(g);
@@ -4118,14 +4082,6 @@ button {
     }
     function showReveal() {
       const p = problems[idx];
-      const reveal = sec.querySelector(".total-reveal");
-      const host = reveal.querySelector(".ans-slot-host");
-      host.innerHTML = `<div class="slot active" data-index="0"></div>`;
-      reveal.classList.remove("hidden");
-      reveal.animate(
-        [{ opacity: 0, transform: "translateY(20px) scale(0.9)" }, { opacity: 1, transform: "translateY(0) scale(1)" }],
-        { duration: 400, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
-      );
       const tray = sec.querySelector(".digit-tray");
       tray.innerHTML = "";
       tray.classList.remove("two-row");
@@ -4233,6 +4189,7 @@ button {
     let totalWrong = 0;
     let dragMgr = null;
     let trayWrongOnCurrentSlot = 0;
+    let landedCount = 0;
     const groupContents = [];
     let groupRowFade = null;
     const sec = document.createElement("section");
@@ -4254,15 +4211,6 @@ button {
     groupRow.className = "group-row";
     const blockPile = document.createElement("div");
     blockPile.className = "block-pile";
-    const ansHost = document.createElement("div");
-    ansHost.className = "ans-host hidden";
-    const ansLabel = document.createElement("span");
-    ansLabel.className = "display";
-    ansLabel.textContent = "HOW MANY TOTAL?";
-    const ansSlotHost = document.createElement("div");
-    ansSlotHost.className = "ans-slot-host";
-    ansHost.appendChild(ansLabel);
-    ansHost.appendChild(ansSlotHost);
     const digitTray = document.createElement("div");
     digitTray.className = "digit-tray hidden";
     const cornerMascot = document.createElement("div");
@@ -4275,7 +4223,6 @@ button {
     sec.appendChild(topbar);
     sec.appendChild(multProblem);
     sec.appendChild(playCol);
-    sec.appendChild(ansHost);
     sec.appendChild(digitTray);
     sec.appendChild(cornerMascot);
     const relayout = () => layoutMultDrag(stage2, sec);
@@ -4293,6 +4240,7 @@ button {
       trayWrongOnCurrentSlot = 0;
       const p = problems[idx];
       groupContents.length = 0;
+      landedCount = 0;
       multProblem.textContent = "";
       const chipA = document.createElement("div");
       chipA.className = "op-chip display";
@@ -4306,34 +4254,34 @@ button {
       const symEq = document.createElement("div");
       symEq.className = "op-sym display";
       symEq.textContent = "=";
-      const chipQ = document.createElement("div");
-      chipQ.className = "op-chip q display";
-      chipQ.textContent = "?";
+      const ansSlot = document.createElement("div");
+      ansSlot.className = "slot active";
+      ansSlot.dataset.index = "0";
       multProblem.appendChild(chipA);
       multProblem.appendChild(symMult);
       multProblem.appendChild(chipB);
       multProblem.appendChild(symEq);
-      multProblem.appendChild(chipQ);
+      multProblem.appendChild(ansSlot);
       if (groupRowFade) {
         groupRowFade.cancel();
         groupRowFade = null;
       }
       groupRow.textContent = "";
-      for (let g = 0; g < p.a; g++) {
+      for (let g = 0; g < p.b; g++) {
         const tray = document.createElement("div");
         tray.className = "group-tray";
         tray.dataset.idx = String(g);
-        for (let i = 0; i < p.b; i++) {
+        for (let i = 0; i < p.a; i++) {
           const ghost = document.createElement("div");
           ghost.className = "ghost";
           tray.appendChild(ghost);
         }
         const chip = document.createElement("div");
         chip.className = "count-chip";
-        chip.textContent = `0 / ${p.b}`;
+        chip.textContent = `0 / ${p.a}`;
         tray.appendChild(chip);
         groupRow.appendChild(tray);
-        groupContents.push({ filled: 0, needed: p.b });
+        groupContents.push({ filled: 0, needed: p.a });
       }
       blockPile.textContent = "";
       const pileCount = 6;
@@ -4427,6 +4375,8 @@ button {
         planted.style.left = `${slot.offsetLeft}px`;
         planted.style.top = `${slot.offsetTop}px`;
         tray.appendChild(planted);
+        landedCount++;
+        sfx.blockTap(landedCount);
         if (groupContents.every((g) => g.filled === g.needed)) {
           setTimeout(showAnswerPhase, 600);
         }
@@ -4434,12 +4384,6 @@ button {
     }
     function setupAnswerArea() {
       const p = problems[idx];
-      ansSlotHost.textContent = "";
-      const slot = document.createElement("div");
-      slot.className = "slot active";
-      slot.dataset.index = "0";
-      ansSlotHost.appendChild(slot);
-      ansHost.classList.remove("hidden");
       digitTray.classList.remove("hidden", "two-row");
       digitTray.textContent = "";
       if (p.answer >= 10) {
@@ -4681,6 +4625,15 @@ button {
     };
   }
   var digitsOfN = (n) => String(n).split("").map(Number);
+  function placeDigits(value, shift, N) {
+    const D = String(value).split("").map(Number);
+    const cells = new Array(N).fill(null);
+    for (let k = 0; k < D.length; k++) {
+      const col = N - 1 - shift - k;
+      if (col >= 0) cells[col] = { digit: D[D.length - 1 - k], di: D.length - 1 - k };
+    }
+    return cells;
+  }
   function createAnswerStateN(answer, dir = "rtl") {
     const expected = Array.isArray(answer) ? answer.slice() : digitsOfN(answer);
     return {
@@ -4753,6 +4706,41 @@ button {
     }
     return { answer: a - b, width, aDigits: digitsOfN(a), bDigits: digitsOfN(b), topRegrouped: work, borrow, steps };
   }
+  function partialCarries(a, digit, shift, N) {
+    const aR = digitsOfN(a).reverse();
+    const carries = {};
+    let carry = 0;
+    for (let k = 0; k < aR.length; k++) {
+      const prod = aR[k] * digit + carry;
+      carry = Math.floor(prod / 10);
+      if (carry > 0) {
+        const col = N - 1 - shift - (k + 1);
+        if (col >= 0) carries[col] = carry;
+      }
+    }
+    return carries;
+  }
+  function sumCarries(addA, addB) {
+    const { carryOut, width } = analyzeColumnsAdd(addA, addB);
+    const carries = {};
+    for (let i = 0; i < width; i++) {
+      if (carryOut[i]) {
+        const col = width - 1 - (i + 1);
+        if (col >= 0) carries[col] = 1;
+      }
+    }
+    return carries;
+  }
+  function buildSequence(cells, carries = {}) {
+    const steps = [];
+    const len = cells.filter(Boolean).length;
+    for (let di = len - 1; di >= 0; di--) {
+      const col = cells.findIndex((c) => c && c.di === di);
+      if (carries[col] != null) steps.push({ kind: "carry", col, value: carries[col] });
+      steps.push({ kind: "result", col, di, value: cells[col].digit });
+    }
+    return steps;
+  }
   function analyzeLongMult(a, b) {
     const bR = digitsOfN(b).reverse();
     const partials = bR.map((digit, shift) => {
@@ -4761,12 +4749,23 @@ button {
     });
     const needsSum = partials.length > 1;
     const product = a * b;
+    const N = String(product).length;
     let sum = null;
     if (needsSum) {
       const add = analyzeColumnsAdd(partials[0].value, partials[1].value);
       sum = { value: product, width: add.width, carryOut: add.carryOut };
     }
-    return { a, b, product, partials, needsSum, sum };
+    for (const p of partials) {
+      p.cells = placeDigits(p.rowDigits, p.shift, N);
+      p.carries = partialCarries(a, p.digit, p.shift, N);
+      p.steps = buildSequence(p.cells, p.carries);
+    }
+    if (needsSum) {
+      sum.cells = placeDigits(product, 0, N);
+      sum.carries = sumCarries(partials[0].value, partials[1].value);
+      sum.steps = buildSequence(sum.cells, sum.carries);
+    }
+    return { a, b, product, N, partials, needsSum, sum };
   }
   function analyzeShortDiv(dividend, divisor) {
     const MAX_PLACES = 2;
@@ -5303,6 +5302,7 @@ button {
   __export(long_mult_exports, {
     mount: () => mount12
   });
+  var pick2 = (src) => ({ cells: src.cells, carries: src.carries, steps: src.steps });
   function mount12(stage2, ctx2, router2) {
     const { world, level } = ctx2;
     stage2.dataset.world = world;
@@ -5315,8 +5315,8 @@ button {
     let N = 0;
     let phases = [];
     let phaseIdx = 0;
-    let activeState = null;
-    const locked = {};
+    let seqIdx = 0;
+    const lockedPhases = /* @__PURE__ */ new Set();
     const sec = document.createElement("section");
     sec.className = "screen active";
     sec.id = "screen-long-mult";
@@ -5364,75 +5364,105 @@ button {
     function startProblem() {
       const p = problems[idx];
       info = analyzeLongMult(p.a, p.b);
-      N = String(info.product).length;
+      N = info.N;
       phases = info.needsSum ? [
-        { key: "p0", value: info.partials[0].rowDigits, shift: 0 },
-        { key: "p1", value: info.partials[1].rowDigits, shift: 1 },
-        { key: "sum", value: info.product, shift: 0 }
-      ] : [{ key: "p0", value: info.product, shift: 0 }];
+        { key: "p0", opSym: " ", ...pick2(info.partials[0]) },
+        { key: "p1", opSym: "+", ...pick2(info.partials[1]) },
+        { key: "sum", opSym: " ", ...pick2(info.sum) }
+      ] : [{ key: "p0", opSym: " ", ...pick2(info.partials[0]) }];
       phaseIdx = 0;
-      for (const k of Object.keys(locked)) delete locked[k];
-      activeState = createAnswerStateN(phases[0].value);
+      seqIdx = 0;
+      lockedPhases.clear();
       sec.dataset.problem = `${p.a}\xD7${p.b}`;
       renderWorksheet();
     }
-    function placeValue(value, shift) {
-      const D = String(value).split("").map(Number);
-      const cells = new Array(N).fill(null);
-      for (let k = 0; k < D.length; k++) {
-        const col = N - 1 - shift - k;
-        if (col >= 0) cells[col] = { digit: D[D.length - 1 - k], di: D.length - 1 - k };
+    function stepState(ph, kind, col) {
+      let s = -1;
+      for (let i = 0; i < ph.steps.length; i++) {
+        if (ph.steps[i].kind === kind && ph.steps[i].col === col) {
+          s = i;
+          break;
+        }
       }
-      return cells;
+      if (s < seqIdx) return "filled";
+      if (s === seqIdx) return "active";
+      return "inactive";
     }
-    function rowHTML(opSym, cells, mode, st, phaseKey) {
-      let html = `<div class="ws-op${opSym && opSym !== " " ? " op" : ""}">${opSym && opSym !== " " ? opSym : ""}</div>`;
+    function staticRowHTML(opSym, cells) {
+      let html = `<div class="ws-op${opSym !== " " ? " op" : ""}">${opSym !== " " ? opSym : ""}</div>`;
       for (let col = 0; col < N; col++) {
         const c = cells[col];
+        html += c ? `<div class="cell">${c.digit}</div>` : `<div class="cell"></div>`;
+      }
+      return html;
+    }
+    function carryStripHTML(ph) {
+      const isCur = ph.key === phases[phaseIdx].key;
+      const locked = lockedPhases.has(ph.key);
+      let html = `<div class="ws-op"></div>`;
+      for (let col = 0; col < N; col++) {
+        const cv = ph.carries[col];
+        if (cv == null) {
+          html += `<div class="carry-cell"></div>`;
+          continue;
+        }
+        if (locked) {
+          html += `<div class="carry-cell fillable filled">${cv}</div>`;
+          continue;
+        }
+        if (!isCur) {
+          html += `<div class="carry-cell"></div>`;
+          continue;
+        }
+        const st = stepState(ph, "carry", col);
+        const val = st === "filled" ? cv : "";
+        html += `<div class="carry-cell fillable ${st}" data-col="${col}" data-phase="${ph.key}">${val}</div>`;
+      }
+      return html;
+    }
+    function resultRowHTML(ph) {
+      const isCur = ph.key === phases[phaseIdx].key;
+      const locked = lockedPhases.has(ph.key);
+      let html = `<div class="ws-op${ph.opSym !== " " ? " op" : ""}">${ph.opSym !== " " ? ph.opSym : ""}</div>`;
+      for (let col = 0; col < N; col++) {
+        const c = ph.cells[col];
         if (!c) {
           html += `<div class="cell"></div>`;
           continue;
         }
-        if (mode === "static") {
+        if (locked) {
           html += `<div class="cell">${c.digit}</div>`;
-        } else {
-          const filled = st ? st.slots[c.di] : null;
-          const cls = filled != null ? "slot filled" : st && c.di === st.activeIndex ? "slot active" : "slot inactive";
-          html += `<div class="${cls}" data-index="${c.di}" data-phase="${phaseKey}">${filled != null ? filled : ""}</div>`;
+          continue;
         }
+        if (!isCur) {
+          html += `<div class="slot inactive" data-index="${c.di}" data-col="${col}" data-phase="${ph.key}"></div>`;
+          continue;
+        }
+        const st = stepState(ph, "result", col);
+        const val = st === "filled" ? c.digit : "";
+        html += `<div class="slot ${st}" data-index="${c.di}" data-col="${col}" data-phase="${ph.key}">${val}</div>`;
       }
       return html;
-    }
-    function carryRowHTML() {
-      let html = `<div class="ws-op"></div>`;
-      for (let col = 0; col < N; col++) html += `<div class="carry-cell" data-col="${col}"></div>`;
-      return html;
-    }
-    function phaseRow(ph) {
-      const cur = phases[phaseIdx];
-      if (ph.key === cur.key) return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "slots", activeState, ph.key);
-      if (locked[ph.key] != null) return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "static");
-      return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "slots", null, ph.key);
     }
     function renderWorksheet() {
       const p = problems[idx];
       const ws = sec.querySelector(".col-ws");
       ws.style.gridTemplateColumns = `44px repeat(${N}, var(--col-w))`;
-      const aCells = placeValue(p.a, 0);
-      const bCells = placeValue(p.b, 0);
-      const p0 = { ...phases.find((x) => x.key === "p0"), opSym: " " };
+      const p0 = phases.find((x) => x.key === "p0");
       let html = "";
-      html += rowHTML(" ", aCells, "static");
-      html += rowHTML("\xD7", bCells, "static");
+      html += staticRowHTML(" ", placeDigits(p.a, 0, N));
+      html += staticRowHTML("\xD7", placeDigits(p.b, 0, N));
       html += `<div class="ws-line"></div>`;
-      html += phaseRow(p0);
+      html += carryStripHTML(p0);
+      html += resultRowHTML(p0);
       if (info.needsSum) {
-        const p1 = { ...phases.find((x) => x.key === "p1"), opSym: "+" };
-        const sum = { ...phases.find((x) => x.key === "sum"), opSym: " " };
-        html += phaseRow(p1);
+        const p1 = phases.find((x) => x.key === "p1");
+        const sum = phases.find((x) => x.key === "sum");
+        html += carryStripHTML(p1);
+        html += resultRowHTML(p1);
         html += `<div class="ws-line"></div>`;
-        html += carryRowHTML();
-        html += phaseRow(sum);
+        html += carryStripHTML(sum);
+        html += resultRowHTML(sum);
       }
       ws.innerHTML = html;
       relayout();
@@ -5440,11 +5470,12 @@ button {
     function setupDrag() {
       dragMgr = createDragManager({
         getTargets() {
-          return Array.from(sec.querySelectorAll(".col-ws .slot")).map((el) => ({
+          return Array.from(sec.querySelectorAll(".lm-ws .slot, .lm-ws .carry-cell.fillable")).map((el) => ({
             el,
             rect: el.getBoundingClientRect(),
             active: el.classList.contains("active"),
-            id: el.dataset.index
+            kind: el.classList.contains("carry-cell") ? "carry" : "result",
+            col: parseInt(el.dataset.col, 10)
           }));
         },
         onPickup(payload, el) {
@@ -5452,11 +5483,10 @@ button {
         },
         async onDrop(payload, target, sourceEl, origin, parentInfo) {
           if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
-          const targetIndex = parseInt(target.id, 10);
-          const next = dropDigit2(activeState, payload.digit, targetIndex);
-          if (!next.lastDropCorrect) {
+          const step = phases[phaseIdx].steps[seqIdx];
+          const ok = target.kind === step.kind && target.col === step.col && payload.digit === step.value;
+          if (!ok) {
             totalWrong++;
-            activeState = next;
             trayWrong++;
             await tileBounceBack(sourceEl, origin, parentInfo);
             target.el.classList.add("flash-no");
@@ -5464,22 +5494,13 @@ button {
             if (trayWrong >= 2) applyHint();
             return;
           }
-          const filledIndex = targetIndex;
-          activeState = next;
           await tileSnapIn(sourceEl, target.el);
-          const cur = phases[phaseIdx];
-          if (cur.key === "sum" && info.sum) {
-            const ci = N - 1 - filledIndex;
-            if (info.sum.carryOut[ci] && filledIndex - 1 >= 0) {
-              const carryCell = sec.querySelector(`.carry-cell[data-col="${filledIndex - 1}"]`);
-              if (carryCell) await flyCarry(carryCell, target.el);
-            }
-          }
-          if (isComplete(activeState)) {
-            locked[cur.key] = cur.value;
+          seqIdx++;
+          if (seqIdx >= phases[phaseIdx].steps.length) {
+            lockedPhases.add(phases[phaseIdx].key);
             if (phaseIdx < phases.length - 1) {
               phaseIdx++;
-              activeState = createAnswerStateN(phases[phaseIdx].value);
+              seqIdx = 0;
               sfx.slotFill();
               setTimeout(() => {
                 renderWorksheet();
@@ -5508,7 +5529,7 @@ button {
       });
     }
     function applyHint() {
-      const expected = activeState.expected[activeState.activeIndex];
+      const expected = phases[phaseIdx].steps[seqIdx].value;
       sec.querySelectorAll(".tile").forEach((tile) => {
         if (parseInt(tile.dataset.digit, 10) === expected) {
           tile.classList.remove("hint-dim");
