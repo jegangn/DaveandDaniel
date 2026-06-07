@@ -1,16 +1,17 @@
-// Daniel · OP: OVERRIDE — long multiplication, up to 2-digit × 2-digit.
-// Phases: fill partial product 0 (a × ones of b) → partial 1 (a × tens of b,
-// shifted one place) → the sum row (with auto-carry). ×1-digit missions have a
-// single partial that IS the product, so they finish after phase 0.
+// Daniel · OP: OVERRIDE + CARRYOVER — long multiplication, up to 2-digit × 2-digit,
+// with child-filled carries on every row. Phases: partial 0 → partial 1 (shifted)
+// → sum. Within each phase the child fills an ordered sequence of result digits AND
+// the carries between them (right-to-left, paper method); the drag engine only
+// accepts the single `active` box, so each carry must be filled before the next
+// digit. ×1-digit missions have a single partial that IS the product.
 import { createDragManager } from "../drag.js";
-import { tilePickup, tileBounceBack, tileSnapIn, flyCarry } from "../animate.js";
-import { isComplete } from "../logic.js";
-import {
-  getProblemsDaniel, mulberry32, analyzeLongMult, createAnswerStateN, dropDigit,
-} from "../logic-daniel.js";
+import { tilePickup, tileBounceBack, tileSnapIn } from "../animate.js";
+import { getProblemsDaniel, mulberry32, analyzeLongMult, placeDigits } from "../logic-daniel.js";
 import { sfx } from "../audio.js";
 import { home, handler } from "../svg.js";
 import { layoutColMath } from "../layout.js";
+
+const pick = (src) => ({ cells: src.cells, carries: src.carries, steps: src.steps });
 
 export function mount(stage, ctx, router) {
   const { world, level } = ctx;
@@ -23,10 +24,10 @@ export function mount(stage, ctx, router) {
 
   let info = null;       // analyzeLongMult result
   let N = 0;             // grid width
-  let phases = [];       // [{ key, value, shift }]
+  let phases = [];       // [{ key, opSym, cells, carries, steps }]
   let phaseIdx = 0;
-  let activeState = null;
-  const locked = {};     // phaseKey -> entered value (for re-render of past rows)
+  let seqIdx = 0;        // index into the current phase's step sequence
+  const lockedPhases = new Set();
 
   const sec = document.createElement("section");
   sec.className = "screen active";
@@ -80,85 +81,92 @@ export function mount(stage, ctx, router) {
   function startProblem() {
     const p = problems[idx];
     info = analyzeLongMult(p.a, p.b);
-    N = String(info.product).length;
+    N = info.N;
     phases = info.needsSum
       ? [
-          { key: "p0", value: info.partials[0].rowDigits, shift: 0 },
-          { key: "p1", value: info.partials[1].rowDigits, shift: 1 },
-          { key: "sum", value: info.product, shift: 0 },
+          { key: "p0", opSym: " ", ...pick(info.partials[0]) },
+          { key: "p1", opSym: "+", ...pick(info.partials[1]) },
+          { key: "sum", opSym: " ", ...pick(info.sum) },
         ]
-      : [{ key: "p0", value: info.product, shift: 0 }];
+      : [{ key: "p0", opSym: " ", ...pick(info.partials[0]) }];
     phaseIdx = 0;
-    for (const k of Object.keys(locked)) delete locked[k];
-    activeState = createAnswerStateN(phases[0].value);
+    seqIdx = 0;
+    lockedPhases.clear();
     sec.dataset.problem = `${p.a}×${p.b}`;
     renderWorksheet();
   }
 
-  // Place a value's digits across N grid columns, shifted left by `shift`.
-  // Returns col -> { digit, di } (di = answer-state index, MSB-first).
-  function placeValue(value, shift) {
-    const D = String(value).split("").map(Number);
-    const cells = new Array(N).fill(null);
-    for (let k = 0; k < D.length; k++) {
-      const col = (N - 1) - shift - k;
-      if (col >= 0) cells[col] = { digit: D[D.length - 1 - k], di: D.length - 1 - k };
+  // "filled" | "active" | "inactive" for a step of the CURRENT phase.
+  function stepState(ph, kind, col) {
+    let s = -1;
+    for (let i = 0; i < ph.steps.length; i++) {
+      if (ph.steps[i].kind === kind && ph.steps[i].col === col) { s = i; break; }
     }
-    return cells;
+    if (s < seqIdx) return "filled";
+    if (s === seqIdx) return "active";
+    return "inactive";
   }
 
-  function rowHTML(opSym, cells, mode, st, phaseKey) {
-    let html = `<div class="ws-op${opSym && opSym !== " " ? " op" : ""}">${opSym && opSym !== " " ? opSym : ""}</div>`;
+  function staticRowHTML(opSym, cells) {
+    let html = `<div class="ws-op${opSym !== " " ? " op" : ""}">${opSym !== " " ? opSym : ""}</div>`;
     for (let col = 0; col < N; col++) {
       const c = cells[col];
-      if (!c) { html += `<div class="cell"></div>`; continue; }
-      if (mode === "static") {
-        html += `<div class="cell">${c.digit}</div>`;
-      } else {
-        const filled = st ? st.slots[c.di] : null;
-        const cls = filled != null ? "slot filled"
-          : (st && c.di === st.activeIndex) ? "slot active" : "slot inactive";
-        html += `<div class="${cls}" data-index="${c.di}" data-phase="${phaseKey}">${filled != null ? filled : ""}</div>`;
-      }
+      html += c ? `<div class="cell">${c.digit}</div>` : `<div class="cell"></div>`;
     }
     return html;
   }
 
-  function carryRowHTML() {
+  function carryStripHTML(ph) {
+    const isCur = ph.key === phases[phaseIdx].key;
+    const locked = lockedPhases.has(ph.key);
     let html = `<div class="ws-op"></div>`;
-    for (let col = 0; col < N; col++) html += `<div class="carry-cell" data-col="${col}"></div>`;
+    for (let col = 0; col < N; col++) {
+      const cv = ph.carries[col];
+      if (cv == null) { html += `<div class="carry-cell"></div>`; continue; }   // spacer
+      if (locked) { html += `<div class="carry-cell fillable filled">${cv}</div>`; continue; }
+      if (!isCur) { html += `<div class="carry-cell"></div>`; continue; }        // future: hidden
+      const st = stepState(ph, "carry", col);
+      const val = st === "filled" ? cv : "";
+      html += `<div class="carry-cell fillable ${st}" data-col="${col}" data-phase="${ph.key}">${val}</div>`;
+    }
     return html;
   }
 
-  function phaseRow(ph) {
-    // How to render a given phase row: static (locked/done), slots (current), or future (dashed).
-    const cur = phases[phaseIdx];
-    if (ph.key === cur.key) return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "slots", activeState, ph.key);
-    if (locked[ph.key] != null) return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "static");
-    return rowHTML(ph.opSym, placeValue(ph.value, ph.shift), "slots", null, ph.key); // future: dashed
+  function resultRowHTML(ph) {
+    const isCur = ph.key === phases[phaseIdx].key;
+    const locked = lockedPhases.has(ph.key);
+    let html = `<div class="ws-op${ph.opSym !== " " ? " op" : ""}">${ph.opSym !== " " ? ph.opSym : ""}</div>`;
+    for (let col = 0; col < N; col++) {
+      const c = ph.cells[col];
+      if (!c) { html += `<div class="cell"></div>`; continue; }
+      if (locked) { html += `<div class="cell">${c.digit}</div>`; continue; }
+      if (!isCur) { html += `<div class="slot inactive" data-index="${c.di}" data-col="${col}" data-phase="${ph.key}"></div>`; continue; }
+      const st = stepState(ph, "result", col);
+      const val = st === "filled" ? c.digit : "";
+      html += `<div class="slot ${st}" data-index="${c.di}" data-col="${col}" data-phase="${ph.key}">${val}</div>`;
+    }
+    return html;
   }
 
   function renderWorksheet() {
     const p = problems[idx];
     const ws = sec.querySelector(".col-ws");
     ws.style.gridTemplateColumns = `44px repeat(${N}, var(--col-w))`;
-    const aCells = placeValue(p.a, 0);
-    const bCells = placeValue(p.b, 0);
-
-    const p0 = { ...phases.find((x) => x.key === "p0"), opSym: " " };
+    const p0 = phases.find((x) => x.key === "p0");
     let html = "";
-    html += rowHTML(" ", aCells, "static");
-    html += rowHTML("×", bCells, "static");
+    html += staticRowHTML(" ", placeDigits(p.a, 0, N));
+    html += staticRowHTML("×", placeDigits(p.b, 0, N));
     html += `<div class="ws-line"></div>`;
-    html += phaseRow(p0);
-
+    html += carryStripHTML(p0);
+    html += resultRowHTML(p0);
     if (info.needsSum) {
-      const p1 = { ...phases.find((x) => x.key === "p1"), opSym: "+" };
-      const sum = { ...phases.find((x) => x.key === "sum"), opSym: " " };
-      html += phaseRow(p1);
+      const p1 = phases.find((x) => x.key === "p1");
+      const sum = phases.find((x) => x.key === "sum");
+      html += carryStripHTML(p1);
+      html += resultRowHTML(p1);
       html += `<div class="ws-line"></div>`;
-      html += carryRowHTML();
-      html += phaseRow(sum);
+      html += carryStripHTML(sum);
+      html += resultRowHTML(sum);
     }
     ws.innerHTML = html;
     relayout();
@@ -167,43 +175,32 @@ export function mount(stage, ctx, router) {
   function setupDrag() {
     dragMgr = createDragManager({
       getTargets() {
-        return Array.from(sec.querySelectorAll(".col-ws .slot")).map((el) => ({
+        return Array.from(sec.querySelectorAll(".lm-ws .slot, .lm-ws .carry-cell.fillable")).map((el) => ({
           el, rect: el.getBoundingClientRect(),
-          active: el.classList.contains("active"), id: el.dataset.index,
+          active: el.classList.contains("active"),
+          kind: el.classList.contains("carry-cell") ? "carry" : "result",
+          col: parseInt(el.dataset.col, 10),
         }));
       },
       onPickup(payload, el) { tilePickup(el); },
       async onDrop(payload, target, sourceEl, origin, parentInfo) {
         if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
-        const targetIndex = parseInt(target.id, 10);
-        const next = dropDigit(activeState, payload.digit, targetIndex);
-        if (!next.lastDropCorrect) {
-          totalWrong++; activeState = next; trayWrong++;
+        const step = phases[phaseIdx].steps[seqIdx];
+        const ok = target.kind === step.kind && target.col === step.col && payload.digit === step.value;
+        if (!ok) {
+          totalWrong++; trayWrong++;
           await tileBounceBack(sourceEl, origin, parentInfo);
           target.el.classList.add("flash-no");
           setTimeout(() => target.el.classList.remove("flash-no"), 200);
           if (trayWrong >= 2) applyHint();
           return;
         }
-        const filledIndex = targetIndex;
-        activeState = next;
         await tileSnapIn(sourceEl, target.el);
-
-        // Sum row carries (adding two partials → carry is 0/1, reuse flyCarry).
-        const cur = phases[phaseIdx];
-        if (cur.key === "sum" && info.sum) {
-          const ci = (N - 1) - filledIndex;
-          if (info.sum.carryOut[ci] && filledIndex - 1 >= 0) {
-            const carryCell = sec.querySelector(`.carry-cell[data-col="${filledIndex - 1}"]`);
-            if (carryCell) await flyCarry(carryCell, target.el);
-          }
-        }
-
-        if (isComplete(activeState)) {
-          locked[cur.key] = cur.value;
+        seqIdx++;
+        if (seqIdx >= phases[phaseIdx].steps.length) {
+          lockedPhases.add(phases[phaseIdx].key);
           if (phaseIdx < phases.length - 1) {
-            phaseIdx++;
-            activeState = createAnswerStateN(phases[phaseIdx].value);
+            phaseIdx++; seqIdx = 0;
             sfx.slotFill();
             setTimeout(() => { renderWorksheet(); renderTray(); setupDrag(); attachTileListeners(); }, 350);
           } else {
@@ -211,7 +208,6 @@ export function mount(stage, ctx, router) {
             await advanceProblem();
           }
         } else {
-          // Same phase, next column: just refresh active highlighting + tray.
           renderWorksheet();
           trayWrong = 0;
           renderTray();
@@ -230,7 +226,7 @@ export function mount(stage, ctx, router) {
   }
 
   function applyHint() {
-    const expected = activeState.expected[activeState.activeIndex];
+    const expected = phases[phaseIdx].steps[seqIdx].value;
     sec.querySelectorAll(".tile").forEach((tile) => {
       if (parseInt(tile.dataset.digit, 10) === expected) {
         tile.classList.remove("hint-dim"); tile.classList.add("hint-target");
