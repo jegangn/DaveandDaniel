@@ -4,9 +4,10 @@ test('localStorage persists star progress across reload', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
 
-  // Simulate L1 add being cleared with 3 stars
-  // Key format: bm.stars.add.1
-  await page.evaluate(() => localStorage.setItem('bm.stars.add.1', '3'));
+  // Simulate L1 add being cleared with 3 stars.
+  // Keys are profile-namespaced: dave.stars.<world>.<level> (the legacy
+  // single-profile `bm.` prefix is dead).
+  await page.evaluate(() => localStorage.setItem('dave.stars.add.1', '3'));
 
   // Reload and navigate to map
   await page.goto('/?profile=dave');
@@ -24,8 +25,8 @@ test('star meter on map reflects stored total', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => {
     localStorage.clear();
-    localStorage.setItem('bm.stars.add.1', '3');
-    localStorage.setItem('bm.stars.add.2', '2');
+    localStorage.setItem('dave.stars.add.1', '3');
+    localStorage.setItem('dave.stars.add.2', '2');
   });
 
   await page.goto('/?profile=dave');

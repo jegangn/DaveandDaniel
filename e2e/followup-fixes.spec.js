@@ -15,30 +15,24 @@ async function slotFits(page, slotSel, text) {
   }, text);
 }
 
-test('mult-drag: "HOW MANY TOTAL?" label is readable and a two-digit answer fits the slot', async ({ page }) => {
+test('mult-drag: a two-digit answer fits the equation answer slot', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto('/');
   await unlockAll(page);
   await goToLevel(page, 'mult', 6); // first problem 5×4 = 20
 
-  // Label was rendering at the ~16px default — must be clearly larger now.
-  const labelPx = await page.locator('.ans-host .display').evaluate(
-    (el) => parseFloat(getComputedStyle(el).fontSize)
-  );
-  expect(labelPx).toBeGreaterThanOrEqual(24);
-
-  // "20" must sit inside the answer box, not spill past its edges.
-  expect(await slotFits(page, '.ans-host .slot', '20')).toBe(true);
+  // "20" must sit inside the equation answer box, not spill past its edges.
+  expect(await slotFits(page, '.mult-problem .slot', '20')).toBe(true);
   await page.screenshot({ path: 'test-results/shots/fix-multdrag-20-phone.png' });
 });
 
-test('mult-tap: two-digit answer fits the TOTAL slot', async ({ page }) => {
+test('mult-tap: a two-digit answer fits the equation answer slot', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await page.goto('/');
   await unlockAll(page);
   await goToLevel(page, 'mult', 3); // 4×N — slot is the same size regardless of problem
 
-  expect(await slotFits(page, '.total-reveal .slot', '20')).toBe(true);
+  expect(await slotFits(page, '.mult-problem .slot', '20')).toBe(true);
   await page.screenshot({ path: 'test-results/shots/fix-multtap-20-phone.png' });
 });
 

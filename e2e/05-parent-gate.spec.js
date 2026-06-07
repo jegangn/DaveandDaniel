@@ -1,20 +1,17 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Helper: trigger long-press on the cog.
- * The cog listens for pointerdown → setTimeout(1500ms) → router.go("settings").
- * After the 1500ms, the splash screen is unmounted and .cog-corner no longer exists.
- * We dispatch pointerdown, wait for the settings screen to appear, then skip pointerup
- * (the cog is gone). The settings transition is triggered purely by the timeout.
+ * Helper: open the parents-only settings gate from the splash.
+ * The cog (`.cog-corner`, labelled "PARENTS") listens for `pointerup` and
+ * routes straight to the settings screen, which mounts the parent-gate card
+ * (a math question) before revealing the actual settings.
  */
 async function openParentGate(page) {
-  const cog = page.locator('.cog-corner');
-  await cog.dispatchEvent('pointerdown');
-  // Wait for parent gate card to appear (timer fires at 1500ms, add buffer)
+  await page.locator('.cog-corner').dispatchEvent('pointerup');
   await expect(page.locator('.parent-gate-card')).toBeVisible({ timeout: 4000 });
 }
 
-test('long-press cog opens parent gate', async ({ page }) => {
+test('tapping the cog opens the parent gate', async ({ page }) => {
   await page.goto('/?profile=dave');
   await openParentGate(page);
   await expect(page.locator('.parent-gate-card')).toBeVisible();
@@ -70,7 +67,8 @@ test('parent gate: correct answer opens settings card', async ({ page }) => {
     }
   }
 
-  // Settings card should be visible
+  // Settings card should be visible. Heading is profile-namespaced
+  // ("SETTINGS · DAVE"), so match the prefix.
   await expect(page.locator('.settings-card')).toBeVisible({ timeout: 2000 });
-  await expect(page.locator('.settings-card h2')).toHaveText('SETTINGS');
+  await expect(page.locator('.settings-card h2')).toContainText('SETTINGS');
 });

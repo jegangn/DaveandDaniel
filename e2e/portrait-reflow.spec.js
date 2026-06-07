@@ -104,13 +104,37 @@ test('addition level in portrait: worksheet centered, tray pinned bottom, tile >
   expect(tile.height).toBeGreaterThanOrEqual(44);
 });
 
+// Drag the single answer tile (whose value === answer) into the equation slot
+// of a mult-tap problem, then wait for the next problem to render with the
+// expected lily-pad count (groups = the next problem's second operand).
+async function answerMultTap(page, answer, expectGroupsAfter) {
+  const tile = page.locator(`.digit-tray .tile[data-value="${answer}"]`).first();
+  const slot = page.locator('.mult-problem .slot.active').first();
+  await tile.waitFor({ state: 'visible' });
+  await slot.waitFor({ state: 'visible' });
+  const tb = await tile.boundingBox();
+  const sb = await slot.boundingBox();
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2, { steps: 8 });
+  await page.mouse.up();
+  // snap-in (~380ms) + setTimeout(renderProblem, 500). Gate on the new render
+  // by waiting for the expected lily-pad count instead of a fixed sleep.
+  await expect(page.locator('.lily-group')).toHaveCount(expectGroupsAfter, { timeout: 4000 });
+}
+
 test('mult tap-count in portrait: lily-pads wrap into a 2-wide grid', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
   await page.goto('/?profile=dave');
   await unlockAll(page);
-  await goToLevel(page, 'mult', 2); // L2 = 3xN, so the screen has 3 lily-pads
+  await goToLevel(page, 'mult', 1); // L1 = 2xN; advance to P3 (2×3) for 3 groups
 
   await expect(page.locator('#screen-mult-tap')).toBeVisible();
+  // New grouping convention: groups = second operand. P1 = 2×1 (answer 2 → next
+  // P2 = 2×2 has 2 pads), P2 answer 4 → next P3 = 2×3 has 3 pads.
+  await answerMultTap(page, 2, 2);
+  await answerMultTap(page, 4, 3);
+
   const pads = await page.locator('.lily-group').all();
   expect(pads.length).toBe(3);
 
@@ -127,7 +151,7 @@ test('mult drag-groups in portrait: 3 group trays stacked + block pile below', a
   await page.setViewportSize(PHONE_PORTRAIT);
   await page.goto('/?profile=dave');
   await unlockAll(page);
-  await goToLevel(page, 'mult', 5); // L5 first problem is 3x4 → 3 group trays
+  await goToLevel(page, 'mult', 4); // L4 first problem is 2×3 → 3 group trays (groups = b)
 
   await expect(page.locator('#screen-mult-drag')).toBeVisible();
   const trays = await page.locator('.group-tray').all();
@@ -271,7 +295,7 @@ async function dragValueToSlot(page, value) {
   await page.waitForTimeout(800);
 }
 
-test('mult tap-count ≥10: TOTAL box clears the tray (reported screenshot 1)', async ({ page }) => {
+test('mult tap-count ≥10: equation answer slot clears the tray (reported screenshot 1)', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
   await page.goto('/?profile=dave');
   await unlockAll(page);
@@ -280,26 +304,40 @@ test('mult tap-count ≥10: TOTAL box clears the tray (reported screenshot 1)', 
   await dragValueToSlot(page, 8);
   await page.waitForTimeout(300);
 
-  // Now showing 4×3 = 12 → compound options 10–20 (11 tiles, 3 rows).
-  const reveal = await page.locator('.total-reveal').boundingBox();
+  // Now showing 4×3 = 12 → compound options 10–20 (11 tiles). The answer box is
+  // now the equation slot in the header (top of screen); the old TOTAL panel is gone.
+  await expect(page.locator('.mult-problem .slot.active')).toBeAttached();
+  await expect(page.locator('.total-reveal')).toHaveCount(0);
+
+  // Equation (top) sits above the digit tray (bottom) — no overlap.
+  const prob = await page.locator('.mult-problem').boundingBox();
   const tray = await page.locator('.digit-tray').boundingBox();
-  const slot = await page.locator('.total-reveal .slot').first().boundingBox();
-  expect(reveal.y + reveal.height).toBeLessThanOrEqual(tray.y + 1);
-  expect(slot.y).toBeGreaterThanOrEqual(reveal.y - 1);
-  expect(slot.y + slot.height).toBeLessThanOrEqual(reveal.y + reveal.height + 1);
+  expect(prob.y + prob.height).toBeLessThanOrEqual(tray.y + 1);
   // Option tiles stay a usable size.
   const tile = await page.locator('.digit-tray .tile').first().boundingBox();
   expect(tile.height).toBeGreaterThanOrEqual(44);
 });
 
-test('mult drag-groups: answer box clears the 16-tile tray', async ({ page }) => {
+test('mult drag-groups: equation answer slot clears the 16-tile tray', async ({ page }) => {
   await page.setViewportSize(PHONE_PORTRAIT);
   await page.goto('/?profile=dave');
   await unlockAll(page);
-  await goToLevel(page, 'mult', 6); // first problem 5×4 = 20 → options 10–20 (16 tiles)
-  const ans = await page.locator('.ans-host').boundingBox();
+  await goToLevel(page, 'mult', 6); // first problem 5×4 = 20; P3 is 5×5 = 25 → options 10–25 (16 tiles, two rows)
+  // Advance to the 5×5 problem so the tray is a full two-row pile.
+  await dragValueToSlot(page, 20); // P1 5×4 = 20
+  await dragValueToSlot(page, 20); // P2 4×5 = 20
+  await page.waitForTimeout(300);
+
+  // The old answer panel is gone — the answer drops into the equation slot.
+  await expect(page.locator('.mult-problem .slot.active')).toBeAttached();
+  await expect(page.locator('.total-reveal')).toHaveCount(0);
+  await expect(page.locator('.ans-host')).toHaveCount(0);
+  await expect(page.locator('.digit-tray.two-row')).toBeAttached();
+
+  // Equation (top) clears the two-row digit tray (bottom) — no overlap.
+  const prob = await page.locator('.mult-problem').boundingBox();
   const tray = await page.locator('.digit-tray').boundingBox();
-  expect(ans.y + ans.height).toBeLessThanOrEqual(tray.y + 1);
+  expect(prob.y + prob.height).toBeLessThanOrEqual(tray.y + 1);
 });
 
 test('addition carry on iPhone SE: answer slots clear the tray (reported screenshot 2)', async ({ page }) => {
