@@ -34,7 +34,12 @@ function toStageLocal(clientX, clientY) {
 }
 
 export function createDragManager({ getTargets, onPickup, onDrop }) {
-  let dragging = null;
+  // Each active finger gets its own drag state, keyed by pointerId, so two
+  // fingers can drag two tiles at once and neither clobbers the other. The
+  // old single-`dragging` design lost the first drag when a second finger
+  // touched down — orphaning its clone (stuck on screen) and leaving the
+  // source tile hidden forever.
+  const drags = new Map();
 
   function start(e, sourceEl, payload) {
     e.preventDefault();
@@ -67,27 +72,34 @@ export function createDragManager({ getTargets, onPickup, onDrop }) {
 
     sourceEl.style.visibility = "hidden";
 
-    dragging = { dragEl, sourceEl, payload, origin, offsetX, offsetY, pointerId: e.pointerId };
-    sourceEl.setPointerCapture?.(e.pointerId);
+    drags.set(e.pointerId, { dragEl, sourceEl, payload, origin, offsetX, offsetY });
+    // Capture is best-effort: setPointerCapture throws if the pointer isn't
+    // currently active (can happen for a second simultaneous finger), and we
+    // must not let that abort the rest of the drag setup.
+    try { sourceEl.setPointerCapture?.(e.pointerId); } catch {}
     onPickup?.(payload, dragEl);
 
     dragEl.classList.add("dragging");
+    // Listeners are attached once and dispatch by pointerId, so concurrent
+    // drags each get their own move/end without clobbering one another.
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   }
 
   function move(e) {
-    if (!dragging || e.pointerId !== dragging.pointerId) return;
-    const { dragEl, offsetX, offsetY } = dragging;
+    const d = drags.get(e.pointerId);
+    if (!d) return;
     const p = toStageLocal(e.clientX, e.clientY);
-    dragEl.style.left = `${p.x - offsetX}px`;
-    dragEl.style.top  = `${p.y - offsetY}px`;
+    d.dragEl.style.left = `${p.x - d.offsetX}px`;
+    d.dragEl.style.top  = `${p.y - d.offsetY}px`;
   }
 
   function end(e) {
-    if (!dragging || e.pointerId !== dragging.pointerId) return;
-    const { dragEl, sourceEl, payload, origin } = dragging;
+    const d = drags.get(e.pointerId);
+    if (!d) return;
+    drags.delete(e.pointerId);
+    const { dragEl, sourceEl, payload, origin } = d;
     const targets = getTargets();
     // Targets use viewport-pixel rects (from getBoundingClientRect on slots).
     // Pointer event is in viewport pixels too. Hit-test stays in viewport space.
@@ -95,10 +107,12 @@ export function createDragManager({ getTargets, onPickup, onDrop }) {
     dragEl.classList.remove("dragging");
     // Reveal the original tile again — it never left its tray slot.
     sourceEl.style.visibility = "";
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", end);
-    window.removeEventListener("pointercancel", end);
-    dragging = null;
+    // Only tear the window listeners down once no finger is dragging.
+    if (drags.size === 0) {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    }
     // The clone carries the snap-in / bounce-back animation, then removes itself.
     onDrop?.(payload, target, dragEl, origin, { sourceEl });
   }

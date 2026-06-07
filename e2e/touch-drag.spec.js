@@ -27,7 +27,9 @@ async function navigateToAddLevel1(page) {
   await page.addInitScript(() => localStorage.clear());
   await page.goto('/');
   await unlockAll(page);
-  await page.goto('/');
+  // App boots to the "Who's playing?" picker; ?profile=dave skips it to Dave's
+  // splash, which has the TAP TO PLAY button.
+  await page.goto('/?profile=dave');
   await page.locator('.splash-play').tap();
   await page.locator('.world-panel').first().locator('.level-node').first().tap();
   await page.waitForTimeout(600);
@@ -178,4 +180,59 @@ test('touch drag: no pointercancel fired when touch-action:none is set', async (
 
   // With touch-action:none on .tile, the browser must not fire pointercancel
   expect(cancelFired).toBe(false);
+});
+
+test('two fingers drag two tiles at once; neither gets stuck', async ({ page }) => {
+  test.setTimeout(45_000);
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('/');
+  await unlockAll(page);
+  // ?profile=dave skips the picker to Dave's splash. Mult tap L1 (world panel 3)
+  // has single-digit answers, so tiles 0–9 are present.
+  await page.goto('/?profile=dave');
+  await page.locator('.splash-play').tap();
+  await page.locator('.world-panel').nth(2).locator('.level-node').first().tap();
+  await page.waitForTimeout(700);
+
+  const a = await page.locator('.tile[data-value="3"]').first().boundingBox();
+  const b = await page.locator('.tile[data-value="5"]').first().boundingBox();
+
+  // Two simultaneous touch pointers, each on a different tile.
+  await page.evaluate(({ a, b }) => {
+    function fire(target, type, x, y, id) {
+      target.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerType: 'touch',
+        pointerId: id, clientX: x, clientY: y, isPrimary: id === 1,
+      }));
+    }
+    const ax = a.x + a.width / 2, ay = a.y + a.height / 2;
+    const bx = b.x + b.width / 2, by = b.y + b.height / 2;
+    fire(document.elementFromPoint(ax, ay), 'pointerdown', ax, ay, 1);
+    fire(document.elementFromPoint(bx, by), 'pointerdown', bx, by, 2);
+    fire(window, 'pointermove', ax + 100, ay - 200, 1);
+    fire(window, 'pointermove', bx - 100, by - 200, 2);
+  }, { a, b });
+  await page.waitForTimeout(100);
+
+  // BOTH clones present and dragging at the same time.
+  await expect(page.locator('.tile.drag-clone.dragging')).toHaveCount(2);
+
+  // Release both.
+  await page.evaluate(() => {
+    function fire(type, x, y, id) {
+      window.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerType: 'touch',
+        pointerId: id, clientX: x, clientY: y, isPrimary: id === 1,
+      }));
+    }
+    fire('pointerup', 200, 200, 1);
+    fire('pointerup', 300, 200, 2);
+  });
+  await page.waitForTimeout(200);
+
+  // No clones left on the stage, and no source tile stuck hidden.
+  await expect(page.locator('.drag-clone')).toHaveCount(0);
+  const hidden = await page.locator('.tile').evaluateAll(
+    (els) => els.filter((e) => e.style.visibility === 'hidden').length);
+  expect(hidden).toBe(0);
 });
