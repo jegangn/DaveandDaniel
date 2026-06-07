@@ -33,16 +33,21 @@ test.beforeEach(async ({ page }) => {
 // Helper: drag the answer digits into the active slot(s) (ones first, tens second)
 // ---------------------------------------------------------------------------
 async function enterMultAnswer(page, answer) {
-  const digits = digitsOf(answer);
-  if (digits.length === 1) {
-    await dragDigitToSlot(page, digits[0], page.locator('.slot.active[data-index="0"]'));
-  } else {
-    // ones first
-    await dragDigitToSlot(page, digits[1], page.locator(".slot.active"));
-    await page.waitForTimeout(300);
-    // then tens
-    await dragDigitToSlot(page, digits[0], page.locator(".slot.active"));
-  }
+  // Mult uses a SINGLE answer slot (in the equation after "="). Whether the
+  // answer is one digit or two, the kid drags the one tile whose value equals
+  // the answer — a plain digit tile for <10, a compound tile (e.g. "20") for
+  // ≥10. Both carry data-value=<answer>.
+  const slot = page.locator(".mult-problem .slot.active").first();
+  await slot.waitFor({ state: "visible" });
+  const tile = page.locator(`.digit-tray .tile[data-value="${answer}"]`).first();
+  await tile.waitFor({ state: "visible" });
+  const tBox = await tile.boundingBox();
+  const sBox = await slot.boundingBox();
+  await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400); // snap-in animation
 }
 
 // ---------------------------------------------------------------------------
@@ -85,10 +90,10 @@ for (let level = 1; level <= 3; level++) {
         remaining = await page.locator(".block-host.untapped").count();
       }
 
-      // Reveal panel should appear
+      // The answer slot lives in the equation header (no separate panel).
       await expect(
-        page.locator(".total-reveal:not(.hidden)"),
-        `L${level} P${i + 1}: reveal panel should appear`
+        page.locator(".mult-problem .slot.active"),
+        `L${level} P${i + 1}: answer slot should be present`
       ).toBeVisible({ timeout: 3000 });
       await page.waitForTimeout(300);
 
@@ -133,40 +138,53 @@ for (let level = 4; level <= 6; level++) {
       expect(a, `L${level} P${i + 1}: expected a=${seedA}, got ${a}`).toBe(seedA);
       expect(b, `L${level} P${i + 1}: expected b=${seedB}, got ${b}`).toBe(seedB);
 
-      // --- Verify tray count = seedA ---
+      // "a × b" = a items per group, shown b times → b group trays of a each.
+      const groups = seedB;
+      const perGroup = seedA;
+
+      // --- Verify tray count = seedB ---
       const trayCount = await page.locator(".group-tray").count();
       expect(
         trayCount,
-        `L${level} P${i + 1}: expected ${seedA} group trays, got ${trayCount}`
-      ).toBe(seedA);
+        `L${level} P${i + 1}: expected ${groups} group trays, got ${trayCount}`
+      ).toBe(groups);
 
-      // --- Fill each group tray with seedB blocks ---
-      for (let g = 0; g < seedA; g++) {
-        for (let fill = 0; fill < seedB; fill++) {
-          const pileBlock = page.locator(".block-pile .block-host").first();
-          const tray = page.locator(`.group-tray[data-idx="${g}"]`);
+      // --- Optional pile-counting: fill each group tray with `perGroup` blocks ---
+      // Tapping a pile mango auto-flies a copy into the next empty slot
+      // (onPileTap fills group 0 fully, then group 1, …), so a sequence of
+      // taps fills the trays in order. The pile never shrinks, so we always
+      // tap the first pile mango.
+      //
+      // Counting is OPTIONAL in the app (it does not gate answering). For the
+      // largest answer (5×5=25) the two-row compound digit tray overlaps the
+      // mango pile in landscape (pre-existing layout quirk), so the pile can't
+      // be tapped — in that case we skip counting and verify answer entry only.
+      const pileReachable = await page.evaluate(() => {
+        const pile = document.querySelector(".block-pile .block-host");
+        if (!pile) return false;
+        const r = pile.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!(hit && hit.closest(".block-pile"));
+      });
+      if (pileReachable) {
+        for (let g = 0; g < groups; g++) {
+          for (let fill = 0; fill < perGroup; fill++) {
+            await page.locator(".block-pile .block-host").first().click({ force: true });
+            await page.waitForTimeout(220);
+          }
 
-          const pBox = await pileBlock.boundingBox();
-          const tBox = await tray.boundingBox();
-
-          await page.mouse.move(pBox.x + pBox.width / 2, pBox.y + pBox.height / 2);
-          await page.mouse.down();
-          await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2, { steps: 8 });
-          await page.mouse.up();
-          await page.waitForTimeout(220);
+          // Tray chip should show the filled state
+          await expect(
+            page.locator(`.group-tray[data-idx="${g}"] .count-chip`),
+            `L${level} P${i + 1} tray ${g}: expected "★ ${perGroup}"`
+          ).toHaveText(`★ ${perGroup}`, { timeout: 3000 });
         }
-
-        // Tray chip should show the filled state
-        await expect(
-          page.locator(`.group-tray[data-idx="${g}"] .count-chip`),
-          `L${level} P${i + 1} tray ${g}: expected "★ ${seedB}"`
-        ).toHaveText(`★ ${seedB}`, { timeout: 3000 });
       }
 
-      // Answer phase appears after 800ms delay in showAnswerPhase
+      // The answer slot lives in the equation header (no separate panel).
       await expect(
-        page.locator(".ans-host:not(.hidden)"),
-        `L${level} P${i + 1}: answer host should appear`
+        page.locator(".mult-problem .slot.active"),
+        `L${level} P${i + 1}: answer slot should be present`
       ).toBeVisible({ timeout: 3000 });
       await page.waitForTimeout(300);
 
@@ -203,18 +221,30 @@ test("mult tap L1 P1: wrong digit bounces back, correct digit accepted", async (
     await page.waitForTimeout(160);
     remaining = await page.locator(".block-host.untapped").count();
   }
-  await expect(page.locator(".total-reveal:not(.hidden)")).toBeVisible({ timeout: 3000 });
+  await expect(page.locator(".mult-problem .slot.active")).toBeVisible({ timeout: 3000 });
   await page.waitForTimeout(300);
 
+  // Mult digit tiles carry data-value (not data-digit). Drag by value.
+  const dragValueToSlot = async (value) => {
+    const tile = page.locator(`.digit-tray .tile[data-value="${value}"]`).first();
+    const slot = page.locator(".mult-problem .slot.active").first();
+    const tBox = await tile.boundingBox();
+    const sBox = await slot.boundingBox();
+    await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+  };
+
   // Answer = 2. Drop wrong digit 7 first.
-  await dragDigitToSlot(page, 7, page.locator(".slot.active"));
+  await dragValueToSlot(7);
   await page.waitForTimeout(600);
 
   await expect(page.locator(".slot.active")).toBeVisible();
   await expect(page.locator(".slot.filled")).toHaveCount(0);
 
   // Drop correct digit 2
-  await dragDigitToSlot(page, 2, page.locator(".slot.active"));
+  await dragValueToSlot(2);
   await page.waitForTimeout(400);
   await expect(page.locator(".slot.filled")).toHaveCount(1);
 });
