@@ -1405,15 +1405,33 @@ button {
 #stage[data-orient="portrait"] .col-ws .cell,
 #stage[data-orient="portrait"] .col-ws .slot { height: 92px; font-size: 64px; line-height: 92px; }
 #stage[data-orient="portrait"] .col-ws .ws-op.op { font-size: 60px; }
+/* Worksheet slots must fill their grid TRACK (--col-w), not inherit the big
+   single-answer-box width (#stage[portrait] .slot { width: 120px }) meant for
+   add/sub. That higher-specificity global leaked in and made worksheet columns
+   overlap horizontally on phones — landscape was unaffected (the 120px rule is
+   portrait-only). Restores column alignment on col-add, col-sub and long-mult. */
+#stage[data-orient="portrait"] .col-ws .slot { width: 100%; }
 
 /* ----- Long multiplication (more rows → tighter cells) --------------- */
-.lm-ws { --col-w: 76px; top: 64px; gap: 4px 8px; }
+/* Row gap is generous so the small carry circles float clearly ABOVE the
+   answer boxes — at 4px the carry and its box read as one blob, especially
+   with two boxes of a pair pulsing at once (CARRYORDER). */
+.lm-ws { --col-w: 76px; top: 64px; gap: 12px 8px; }
 .lm-ws .cell,
 .lm-ws .slot { height: 80px; font-size: 58px; line-height: 80px; }
 .lm-ws .ws-op.op { font-size: 54px; }
 .lm-ws .carry-cell { height: 36px; font-size: 26px; line-height: 36px; }
-.lm-ws .carry-cell.fillable { width: 44px; height: 44px; font-size: 28px; }
-#stage[data-orient="portrait"] .lm-ws .carry-cell.fillable { width: 40px; height: 40px; font-size: 26px; }
+.lm-ws .carry-cell.fillable { width: 40px; height: 40px; font-size: 26px; }
+#stage[data-orient="portrait"] .lm-ws .carry-cell.fillable { width: 38px; height: 38px; font-size: 24px; }
+/* Tighter pulse than the roomy add/sub screens: the worksheet packs rows close,
+   so the default 16px halo bled across the carry→box gap. Keep it snug to each box. */
+.lm-ws .slot.active,
+.lm-ws .carry-cell.fillable.active { animation-name: slotPulseTight; }
+@keyframes slotPulseTight {
+  0%   { box-shadow: 0 0 0 0 var(--world-primary); }
+  60%  { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 .lm-ws .regroup-mark { font-size: 26px; }
 #stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
 #stage[data-orient="portrait"] .lm-ws .cell,
@@ -3394,6 +3412,7 @@ button {
     if (!el) return;
     el.style.position = "absolute";
     el.style.left = "50%";
+    el.style.transformOrigin = "center";
     el.style.transform = "none";
     el.style.top = "";
     const natH = el.offsetHeight;
@@ -3403,6 +3422,20 @@ button {
     const center = (bandTop + bandBottom) / 2;
     el.style.top = `${center}px`;
     el.style.transform = `translate(-50%, -50%) scale(${s})`;
+  }
+  function fitLandscapeLongMult(ws, tray) {
+    if (!ws) return;
+    ws.style.position = "";
+    ws.style.left = "";
+    ws.style.top = "";
+    ws.style.transformOrigin = "top center";
+    ws.style.transform = "translateX(-50%) scale(1)";
+    const wr = ws.getBoundingClientRect();
+    const trayTop = tray ? tray.getBoundingClientRect().top : window.innerHeight;
+    const avail = trayTop - wr.top - 16;
+    let s = 1;
+    if (wr.height > avail && wr.height > 0) s = Math.max(0.5, avail / wr.height);
+    ws.style.transform = `translateX(-50%) scale(${s})`;
   }
   function clearInline(el, props) {
     if (!el) return;
@@ -3478,12 +3511,14 @@ button {
     if (!sec || !sec.isConnected) return;
     const tray = sec.querySelector(".digit-tray");
     const ws = sec.querySelector(".col-ws");
+    const isLongMult = !!sec.querySelector(".lm-ws");
     if (!isPortrait(stage2)) {
       if (tray) {
         clearTileSizes(tray.querySelectorAll(".tile"));
         tray.style.height = "";
       }
-      clearInline(ws, ["position", "left", "top", "transform"]);
+      if (isLongMult) fitLandscapeLongMult(ws, tray);
+      else clearInline(ws, ["position", "left", "top", "transform"]);
       return;
     }
     const H = stage2.offsetHeight;
@@ -4760,6 +4795,18 @@ button {
     }
     return steps;
   }
+  function buildGroups(steps) {
+    const groups = [];
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].kind === "result" && steps[i + 1] && steps[i + 1].kind === "carry") {
+        groups.push([steps[i], steps[i + 1]]);
+        i++;
+      } else {
+        groups.push([steps[i]]);
+      }
+    }
+    return groups;
+  }
   function analyzeLongMult(a, b) {
     const bR = digitsOfN(b).reverse();
     const partials = bR.map((digit, shift) => {
@@ -5322,6 +5369,7 @@ button {
     mount: () => mount12
   });
   var pick2 = (src) => ({ cells: src.cells, carries: src.carries, steps: src.steps });
+  var stepKey = (s) => `${s.kind}:${s.col}`;
   function mount12(stage2, ctx2, router2) {
     const { world, level } = ctx2;
     stage2.dataset.world = world;
@@ -5334,7 +5382,9 @@ button {
     let N = 0;
     let phases = [];
     let phaseIdx = 0;
-    let seqIdx = 0;
+    let groups = [];
+    let groupIdx = 0;
+    let filled = /* @__PURE__ */ new Set();
     const lockedPhases = /* @__PURE__ */ new Set();
     const sec = document.createElement("section");
     sec.className = "screen active";
@@ -5380,6 +5430,11 @@ button {
       }
       relayout();
     }
+    function setPhaseGroups() {
+      groups = buildGroups(phases[phaseIdx].steps);
+      groupIdx = 0;
+      filled = /* @__PURE__ */ new Set();
+    }
     function startProblem() {
       const p = problems[idx];
       info = analyzeLongMult(p.a, p.b);
@@ -5390,21 +5445,19 @@ button {
         { key: "sum", opSym: " ", ...pick2(info.sum) }
       ] : [{ key: "p0", opSym: " ", ...pick2(info.partials[0]) }];
       phaseIdx = 0;
-      seqIdx = 0;
+      setPhaseGroups();
       lockedPhases.clear();
       sec.dataset.problem = `${p.a}\xD7${p.b}`;
       renderWorksheet();
     }
     function stepState(ph, kind, col) {
-      let s = -1;
-      for (let i = 0; i < ph.steps.length; i++) {
-        if (ph.steps[i].kind === kind && ph.steps[i].col === col) {
-          s = i;
-          break;
-        }
+      for (let g = 0; g < groups.length; g++) {
+        const s = groups[g].find((x) => x.kind === kind && x.col === col);
+        if (!s) continue;
+        if (g < groupIdx) return "filled";
+        if (g > groupIdx) return "inactive";
+        return filled.has(stepKey(s)) ? "filled" : "active";
       }
-      if (s < seqIdx) return "filled";
-      if (s === seqIdx) return "active";
       return "inactive";
     }
     function staticRowHTML(opSym, cells) {
@@ -5502,9 +5555,11 @@ button {
         },
         async onDrop(payload, target, sourceEl, origin, parentInfo) {
           if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
-          const step = phases[phaseIdx].steps[seqIdx];
-          const ok = target.kind === step.kind && target.col === step.col && payload.digit === step.value;
-          if (!ok) {
+          const grp = groups[groupIdx];
+          const match = grp.find(
+            (s) => !filled.has(stepKey(s)) && target.kind === s.kind && target.col === s.col && payload.digit === s.value
+          );
+          if (!match) {
             totalWrong++;
             trayWrong++;
             await tileBounceBack(sourceEl, origin, parentInfo);
@@ -5514,12 +5569,22 @@ button {
             return;
           }
           await tileSnapIn(sourceEl, target.el);
-          seqIdx++;
-          if (seqIdx >= phases[phaseIdx].steps.length) {
+          filled.add(stepKey(match));
+          trayWrong = 0;
+          if (!grp.every((s) => filled.has(stepKey(s)))) {
+            renderWorksheet();
+            renderTray();
+            setupDrag();
+            attachTileListeners();
+            return;
+          }
+          groupIdx++;
+          filled = /* @__PURE__ */ new Set();
+          if (groupIdx >= groups.length) {
             lockedPhases.add(phases[phaseIdx].key);
             if (phaseIdx < phases.length - 1) {
               phaseIdx++;
-              seqIdx = 0;
+              setPhaseGroups();
               sfx.slotFill();
               setTimeout(() => {
                 renderWorksheet();
@@ -5533,7 +5598,6 @@ button {
             }
           } else {
             renderWorksheet();
-            trayWrong = 0;
             renderTray();
             setupDrag();
             attachTileListeners();
@@ -5548,9 +5612,11 @@ button {
       });
     }
     function applyHint() {
-      const expected = phases[phaseIdx].steps[seqIdx].value;
+      const wanted = new Set(
+        groups[groupIdx].filter((s) => !filled.has(stepKey(s))).map((s) => s.value)
+      );
       sec.querySelectorAll(".tile").forEach((tile) => {
-        if (parseInt(tile.dataset.digit, 10) === expected) {
+        if (wanted.has(parseInt(tile.dataset.digit, 10))) {
           tile.classList.remove("hint-dim");
           tile.classList.add("hint-target");
         } else {

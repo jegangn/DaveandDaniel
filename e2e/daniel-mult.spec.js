@@ -1,20 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { unlockAll, goToLevel } from './helpers/math.js';
-import { analyzeLongMult } from '../src/logic-daniel.js';
+import { analyzeLongMult, buildGroups } from '../src/logic-daniel.js';
 
-// Daniel · OP: OVERRIDE + CARRYOVER. The child fills every result digit AND every
-// carry, right-to-left, on each partial row and the final sum. We compute the
-// exact ordered drop values from the real analyzer and drop each onto whichever
-// box is currently active (result slot OR fillable carry cell).
+// Daniel · OP: OVERRIDE + CARRYOVER + CARRYORDER. The child fills every result
+// digit AND every carry, right-to-left, on each partial row and the final sum.
+// A result digit and the carry it produces ("write 4, carry 5") are one group
+// the child may fill in EITHER order, so each box is targeted by its own column
+// rather than "the single active box" — both boxes of a pair are active at once.
 
-const ACTIVE = '.col-ws .slot.active, .col-ws .carry-cell.fillable.active';
-
-function dropValues(a, b) {
+function phasesOf(a, b) {
   const info = analyzeLongMult(a, b);
-  const phases = info.needsSum
-    ? [info.partials[0], info.partials[1], info.sum]
-    : [info.partials[0]];
-  return phases.flatMap((ph) => ph.steps.map((s) => s.value));
+  return info.needsSum
+    ? [['p0', info.partials[0]], ['p1', info.partials[1]], ['sum', info.sum]]
+    : [['p0', info.partials[0]]];
+}
+
+// Every drop step, tagged with the phase its box lives in.
+function dropSteps(a, b) {
+  return phasesOf(a, b).flatMap(([key, ph]) => ph.steps.map((s) => ({ ...s, phase: key })));
+}
+
+// The exact active box a step belongs to (result slot OR fillable carry cell).
+function boxSel(step) {
+  const kind = step.kind === 'carry' ? '.carry-cell.fillable' : '.slot';
+  return `.col-ws ${kind}.active[data-col="${step.col}"][data-phase="${step.phase}"]`;
 }
 
 async function dragDigit(page, digit, slotSel) {
@@ -24,7 +33,7 @@ async function dragDigit(page, digit, slotSel) {
   await tile.waitFor({ state: 'visible' });
   const tBox = await tile.boundingBox();
   const sBox = await slot.boundingBox();
-  if (!tBox || !sBox) throw new Error(`missing tile ${digit} or active box`);
+  if (!tBox || !sBox) throw new Error(`missing tile ${digit} or active box ${slotSel}`);
   await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });
@@ -34,9 +43,9 @@ async function dragDigit(page, digit, slotSel) {
 async function solveLongMult(page) {
   const prob = await page.locator('#screen-long-mult').getAttribute('data-problem'); // "56×74"
   const [a, b] = prob.split('×').map(Number);
-  for (const v of dropValues(a, b)) {
-    await dragDigit(page, v, ACTIVE);
-    await page.waitForTimeout(1000); // snap + re-render (no auto carry-fly anymore)
+  for (const step of dropSteps(a, b)) {
+    await dragDigit(page, step.value, boxSel(step));
+    await page.waitForTimeout(1000); // snap + re-render
   }
 }
 
@@ -76,12 +85,58 @@ test('OVERRIDE: carries are child-filled, not auto (a 2×2 problem)', async ({ p
   // Fillable carry boxes exist for this problem, and none is pre-filled.
   await expect(page.locator('.col-ws .carry-cell.fillable')).not.toHaveCount(0);
   await expect(page.locator('.col-ws .carry-cell.fillable.filled')).toHaveCount(0);
+});
 
-  // After the first result digit, a carry box becomes the active target.
-  const prob = await page.locator('#screen-long-mult').getAttribute('data-problem');
-  const [a, b] = prob.split('×').map(Number);
-  const first = dropValues(a, b)[0];
-  await dragDigit(page, first, ACTIVE);
+// CARRYORDER — the headline change: a result digit and the carry it produces
+// may be entered in EITHER order. "9×6=54" → the child can drop the 5 first or
+// the 4 first. Both boxes of the pair are active at once; the carry no longer
+// has to wait for its result.
+test('CARRYORDER: the carry may be dropped before its result digit', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?profile=daniel');
+  await unlockAll(page, 'daniel');
+
+  // Re-roll until the first partial has a real write-and-carry pair (most do;
+  // a few like 42×1 don't). Each navigation re-seeds with a fresh problem.
+  let a, b, groups, pairIdx = -1;
+  for (let tries = 0; tries < 15; tries++) {
+    await goToLevel(page, 'nmul', 5, 'daniel');
+    await expect(page.locator('#screen-long-mult')).toBeVisible({ timeout: 5000 });
+    await page.waitForTimeout(300);
+    const prob = await page.locator('#screen-long-mult').getAttribute('data-problem');
+    [a, b] = prob.split('×').map(Number);
+    groups = buildGroups(analyzeLongMult(a, b).partials[0].steps);
+    pairIdx = groups.findIndex((g) => g.length === 2);
+    if (pairIdx >= 0) break;
+  }
+  expect(pairIdx, 'a 2×2 partial with a carry pair').toBeGreaterThanOrEqual(0);
+
+  // Fill the leading single-step groups (results with no carry) in order.
+  for (let gi = 0; gi < pairIdx; gi++) {
+    const s = { ...groups[gi][0], phase: 'p0' };
+    await dragDigit(page, s.value, boxSel(s));
+    await page.waitForTimeout(1000);
+  }
+
+  // buildSequence emits result first, then its carry — but BOTH are now active.
+  const result = { ...groups[pairIdx][0], phase: 'p0' };
+  const carry = { ...groups[pairIdx][1], phase: 'p0' };
+  await expect(page.locator(boxSel(result))).toHaveCount(1);
+  await expect(page.locator(boxSel(carry))).toHaveCount(1);
+
+  // Drop the CARRY first.
+  await dragDigit(page, carry.value, boxSel(carry));
   await page.waitForTimeout(1000);
-  await expect(page.locator('.col-ws .carry-cell.fillable.active')).toHaveCount(1);
+  await expect(
+    page.locator(`.col-ws .carry-cell.fillable.filled[data-col="${carry.col}"][data-phase="p0"]`)
+  ).toHaveCount(1);
+  // Its result box is still waiting.
+  await expect(page.locator(boxSel(result))).toHaveCount(1);
+
+  // The result digit then completes the pair and the row advances.
+  await dragDigit(page, result.value, boxSel(result));
+  await page.waitForTimeout(1000);
+  await expect(
+    page.locator(`.col-ws .slot.filled[data-col="${result.col}"][data-phase="p0"]`)
+  ).toHaveCount(1);
 });

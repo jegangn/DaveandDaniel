@@ -93,6 +93,7 @@ function centerPlay(stage, el, bandTop, bandBottom, scaleToFit) {
   if (!el) return;
   el.style.position = "absolute";
   el.style.left = "50%";
+  el.style.transformOrigin = "center";
   el.style.transform = "none";
   el.style.top = "";
   const natH = el.offsetHeight; // measured at scale 1
@@ -102,6 +103,26 @@ function centerPlay(stage, el, bandTop, bandBottom, scaleToFit) {
   const center = (bandTop + bandBottom) / 2;
   el.style.top = `${center}px`;
   el.style.transform = `translate(-50%, -50%) scale(${s})`;
+}
+
+// Long multiplication stacks many rows; in landscape the worksheet is
+// CSS-positioned (top-anchored, no centring) so a 2×2-with-sum problem can run
+// past the digit tray. Scale the card down from its top edge just enough to
+// clear the tray — fits any landscape height (laptop, tablet, landscape phone).
+function fitLandscapeLongMult(ws, tray) {
+  if (!ws) return;
+  // Drop any portrait inline placement so the CSS top-anchor applies, then scale.
+  ws.style.position = "";
+  ws.style.left = "";
+  ws.style.top = "";
+  ws.style.transformOrigin = "top center";
+  ws.style.transform = "translateX(-50%) scale(1)";
+  const wr = ws.getBoundingClientRect();
+  const trayTop = tray ? tray.getBoundingClientRect().top : window.innerHeight;
+  const avail = trayTop - wr.top - 16; // breathing room above the tray
+  let s = 1;
+  if (wr.height > avail && wr.height > 0) s = Math.max(0.5, avail / wr.height);
+  ws.style.transform = `translateX(-50%) scale(${s})`;
 }
 
 function clearInline(el, props) {
@@ -197,9 +218,12 @@ export function layoutColMath(stage, sec) {
   if (!sec || !sec.isConnected) return;
   const tray = sec.querySelector(".digit-tray");
   const ws = sec.querySelector(".col-ws");
+  const isLongMult = !!sec.querySelector(".lm-ws");
   if (!isPortrait(stage)) {
     if (tray) { clearTileSizes(tray.querySelectorAll(".tile")); tray.style.height = ""; }
-    clearInline(ws, ["position", "left", "top", "transform"]);
+    // Long mult is tall; scale it to clear the tray. Add/sub fit as-is.
+    if (isLongMult) fitLandscapeLongMult(ws, tray);
+    else clearInline(ws, ["position", "left", "top", "transform"]);
     return;
   }
   const H = stage.offsetHeight;

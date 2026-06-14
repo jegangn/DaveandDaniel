@@ -3,7 +3,7 @@ import {
   mulberry32, digitsOfN, createAnswerStateN, dropDigit, dropDigitLTR,
   analyzeColumnsAdd, analyzeColumnsSub, analyzeLongMult, analyzeShortDiv,
   getProblemsDaniel,
-  placeDigits, partialCarries, sumCarries, buildSequence,
+  placeDigits, partialCarries, sumCarries, buildSequence, buildGroups,
 } from "../src/logic-daniel.js";
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
@@ -344,4 +344,39 @@ test("analyzeLongMult: ×1-digit still has no sum, but the single partial carrie
   expect(r.sum).toBeNull();
   expect(r.partials[0].carries).toEqual({ 2: 2, 1: 2, 0: 1 });
   expect(r.partials[0].steps.length).toBeGreaterThan(0);
+});
+
+// ===== OP: CARRYORDER — either-order fill groups ============================
+// A result digit and the carry it produces ("write 4, carry 5") are the two
+// halves of one mental step, so the child may fill them in EITHER order. These
+// two steps form one group; every other step is its own single-step group.
+
+test("buildGroups: pairs each result digit with the carry it produces", () => {
+  // 392 partial (carries 4 then 3): every column past the ones writes-and-carries.
+  const seq392 = buildSequence(placeDigits(392, 1, 4), { 1: 4, 0: 3 });
+  expect(buildGroups(seq392)).toEqual([
+    [{ kind: "result", col: 2, di: 2, value: 2 }, { kind: "carry", col: 1, value: 4 }],
+    [{ kind: "result", col: 1, di: 1, value: 9 }, { kind: "carry", col: 0, value: 3 }],
+    [{ kind: "result", col: 0, di: 0, value: 3 }],
+  ]);
+
+  // 4144 sum (one carry into the thousands): only that column is a pair.
+  const seq4144 = buildSequence(placeDigits(4144, 0, 4), { 0: 1 });
+  expect(buildGroups(seq4144)).toEqual([
+    [{ kind: "result", col: 3, di: 3, value: 4 }],
+    [{ kind: "result", col: 2, di: 2, value: 4 }],
+    [{ kind: "result", col: 1, di: 1, value: 1 }, { kind: "carry", col: 0, value: 1 }],
+    [{ kind: "result", col: 0, di: 0, value: 4 }],
+  ]);
+
+  // 48 (no carries): every digit is its own single-step group.
+  const seq48 = buildSequence(placeDigits(48, 0, 2), {});
+  expect(buildGroups(seq48)).toEqual([
+    [{ kind: "result", col: 1, di: 1, value: 8 }],
+    [{ kind: "result", col: 0, di: 0, value: 4 }],
+  ]);
+});
+
+test("buildGroups: empty sequence → no groups", () => {
+  expect(buildGroups([])).toEqual([]);
 });

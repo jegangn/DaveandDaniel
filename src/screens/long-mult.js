@@ -6,12 +6,13 @@
 // digit. ×1-digit missions have a single partial that IS the product.
 import { createDragManager } from "../drag.js";
 import { tilePickup, tileBounceBack, tileSnapIn } from "../animate.js";
-import { getProblemsDaniel, mulberry32, analyzeLongMult, placeDigits } from "../logic-daniel.js";
+import { getProblemsDaniel, mulberry32, analyzeLongMult, placeDigits, buildGroups } from "../logic-daniel.js";
 import { sfx } from "../audio.js";
 import { home, handler } from "../svg.js";
 import { layoutColMath } from "../layout.js";
 
 const pick = (src) => ({ cells: src.cells, carries: src.carries, steps: src.steps });
+const stepKey = (s) => `${s.kind}:${s.col}`;
 
 export function mount(stage, ctx, router) {
   const { world, level } = ctx;
@@ -26,7 +27,11 @@ export function mount(stage, ctx, router) {
   let N = 0;             // grid width
   let phases = [];       // [{ key, opSym, cells, carries, steps }]
   let phaseIdx = 0;
-  let seqIdx = 0;        // index into the current phase's step sequence
+  // The current phase's steps grouped into either-order units: a result digit
+  // and the carry it produces share one group the child fills in any order.
+  let groups = [];       // buildGroups(phase.steps)
+  let groupIdx = 0;      // index into `groups`
+  let filled = new Set();// step keys filled within the CURRENT group
   const lockedPhases = new Set();
 
   const sec = document.createElement("section");
@@ -78,6 +83,13 @@ export function mount(stage, ctx, router) {
     relayout();
   }
 
+  // Rebuild the either-order groups for whatever phase is now current.
+  function setPhaseGroups() {
+    groups = buildGroups(phases[phaseIdx].steps);
+    groupIdx = 0;
+    filled = new Set();
+  }
+
   function startProblem() {
     const p = problems[idx];
     info = analyzeLongMult(p.a, p.b);
@@ -90,20 +102,22 @@ export function mount(stage, ctx, router) {
         ]
       : [{ key: "p0", opSym: " ", ...pick(info.partials[0]) }];
     phaseIdx = 0;
-    seqIdx = 0;
+    setPhaseGroups();
     lockedPhases.clear();
     sec.dataset.problem = `${p.a}×${p.b}`;
     renderWorksheet();
   }
 
-  // "filled" | "active" | "inactive" for a step of the CURRENT phase.
+  // "filled" | "active" | "inactive" for a step of the CURRENT phase. Every
+  // unfilled step in the current group is active at once (either-order entry).
   function stepState(ph, kind, col) {
-    let s = -1;
-    for (let i = 0; i < ph.steps.length; i++) {
-      if (ph.steps[i].kind === kind && ph.steps[i].col === col) { s = i; break; }
+    for (let g = 0; g < groups.length; g++) {
+      const s = groups[g].find((x) => x.kind === kind && x.col === col);
+      if (!s) continue;
+      if (g < groupIdx) return "filled";
+      if (g > groupIdx) return "inactive";
+      return filled.has(stepKey(s)) ? "filled" : "active";
     }
-    if (s < seqIdx) return "filled";
-    if (s === seqIdx) return "active";
     return "inactive";
   }
 
@@ -185,9 +199,14 @@ export function mount(stage, ctx, router) {
       onPickup(payload, el) { tilePickup(el); },
       async onDrop(payload, target, sourceEl, origin, parentInfo) {
         if (!target) return tileBounceBack(sourceEl, origin, parentInfo);
-        const step = phases[phaseIdx].steps[seqIdx];
-        const ok = target.kind === step.kind && target.col === step.col && payload.digit === step.value;
-        if (!ok) {
+        // Accept any not-yet-filled step in the current group, in any order, as
+        // long as the digit matches the box it was dropped on.
+        const grp = groups[groupIdx];
+        const match = grp.find(
+          (s) => !filled.has(stepKey(s)) &&
+                 target.kind === s.kind && target.col === s.col && payload.digit === s.value
+        );
+        if (!match) {
           totalWrong++; trayWrong++;
           await tileBounceBack(sourceEl, origin, parentInfo);
           target.el.classList.add("flash-no");
@@ -196,11 +215,24 @@ export function mount(stage, ctx, router) {
           return;
         }
         await tileSnapIn(sourceEl, target.el);
-        seqIdx++;
-        if (seqIdx >= phases[phaseIdx].steps.length) {
+        filled.add(stepKey(match));
+        trayWrong = 0;
+        if (!grp.every((s) => filled.has(stepKey(s)))) {
+          // Pair half-done: reveal the digit just placed, keep the other box active.
+          renderWorksheet();
+          renderTray();
+          setupDrag();
+          attachTileListeners();
+          return;
+        }
+        // Group complete → open the next one.
+        groupIdx++;
+        filled = new Set();
+        if (groupIdx >= groups.length) {
           lockedPhases.add(phases[phaseIdx].key);
           if (phaseIdx < phases.length - 1) {
-            phaseIdx++; seqIdx = 0;
+            phaseIdx++;
+            setPhaseGroups();
             sfx.slotFill();
             setTimeout(() => { renderWorksheet(); renderTray(); setupDrag(); attachTileListeners(); }, 350);
           } else {
@@ -209,7 +241,6 @@ export function mount(stage, ctx, router) {
           }
         } else {
           renderWorksheet();
-          trayWrong = 0;
           renderTray();
           setupDrag();
           attachTileListeners();
@@ -226,9 +257,12 @@ export function mount(stage, ctx, router) {
   }
 
   function applyHint() {
-    const expected = phases[phaseIdx].steps[seqIdx].value;
+    // Highlight every digit still needed in the current group (1 or 2 values).
+    const wanted = new Set(
+      groups[groupIdx].filter((s) => !filled.has(stepKey(s))).map((s) => s.value)
+    );
     sec.querySelectorAll(".tile").forEach((tile) => {
-      if (parseInt(tile.dataset.digit, 10) === expected) {
+      if (wanted.has(parseInt(tile.dataset.digit, 10))) {
         tile.classList.remove("hint-dim"); tile.classList.add("hint-target");
       } else {
         tile.classList.add("hint-dim");

@@ -164,6 +164,24 @@ export function buildSequence(cells, carries = {}) {
   return steps;
 }
 
+// Group an ordered step list into "either-order" units. A result digit and the
+// carry it produces are emitted back-to-back by buildSequence (result first,
+// then its carry-out), and they are the two halves of one mental step — e.g.
+// 9×6=54 writes a 4 AND carries a 5. The child may fill those two boxes in
+// EITHER order, so they share one group. Every other step is its own group.
+export function buildGroups(steps) {
+  const groups = [];
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].kind === "result" && steps[i + 1] && steps[i + 1].kind === "carry") {
+      groups.push([steps[i], steps[i + 1]]);
+      i++; // consume the paired carry
+    } else {
+      groups.push([steps[i]]);
+    }
+  }
+  return groups;
+}
+
 // ----- Long multiplication ---------------------------------------------------
 // One partial product per multiplier digit (LSB-first → shift = its place).
 // `rowDigits` is what the kid writes for that row (a × digit); `value` is the
