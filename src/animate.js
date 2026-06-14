@@ -748,55 +748,130 @@ export function animateBorrow({ tensTopEl, onesTopEl, newTensDigit, newOnesValue
 }
 
 // ===== Daniel: N-column borrow pre-pass =====
-// Plays analyzeColumnsSub's ordered regroup steps across the top-operand cells:
-// strike the digit that changes and write its new (regrouped) value above it.
-// Runs right-to-left and chains through zeros (each 0 → 9). The kid then just
-// reads the regrouped numbers and drops the answer digits — they never perform
-// the borrow themselves (same contract as Jhanav's sub).
+// Plays analyzeColumnsSub's regroup steps so the child SEES where the borrow
+// comes from: for each borrow a small "1" is taken from the lender digit on the
+// LEFT and travels right across the columns (each 0 it crosses flips to 9),
+// landing on the column that needed it (e.g. 2 → 12). The kid then just reads
+// the regrouped numbers and drops the answer digits — they never perform the
+// borrow themselves (same contract as Jhanav's sub).
+const BORROW_SVG_NS = "http://www.w3.org/2000/svg";
+
+// Strike a top-row cell and write its regrouped value above it (paper style).
+function markBorrowCell(sec, s) {
+  const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
+  if (!cell) return null;
+  // A digit can regroup twice (lent-from, then borrowed-into); keep only the
+  // latest mark so a column never shows two stacked numbers at once.
+  cell.querySelectorAll(".strike, .regroup-mark").forEach((el) => el.remove());
+
+  const strike = document.createElement("div");
+  strike.className = "strike";
+  const svg = document.createElementNS(BORROW_SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 100 120");
+  svg.setAttribute("preserveAspectRatio", "none");
+  const line = document.createElementNS(BORROW_SVG_NS, "line");
+  line.setAttribute("x1", "16"); line.setAttribute("y1", "98");
+  line.setAttribute("x2", "84"); line.setAttribute("y2", "22");
+  line.setAttribute("stroke", "#E07B2E");
+  line.setAttribute("stroke-width", "7");
+  line.setAttribute("stroke-linecap", "round");
+  svg.appendChild(line);
+  strike.appendChild(svg);
+  cell.appendChild(strike);
+
+  const mark = document.createElement("div");
+  mark.className = "regroup-mark";
+  mark.textContent = String(s.to);
+  cell.appendChild(mark);
+  mark.animate(
+    [{ opacity: 0, transform: "translateX(-50%) scale(0.4)" },
+     { opacity: 1, transform: "translateX(-50%) scale(1)" }],
+    { duration: 320, easing: "cubic-bezier(0.45,0.05,0.25,1)", fill: "forwards" }
+  );
+  return cell;
+}
+
+const borrowCellCenter = (cell) => {
+  const r = cell.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+// Animate ONE borrow chain. `ordered` runs left-to-right: lender first (highest
+// column), then any zeros it passes, then the borrower last (lowest column).
+function playBorrowTravel(sec, ordered, done) {
+  const lendCell = markBorrowCell(sec, ordered[0]); // lender gives up its 1
+  if (!lendCell) { done(); return; }
+
+  const chip = document.createElement("div");
+  chip.className = "borrow-travel";
+  chip.textContent = "1";
+  document.body.appendChild(chip);
+  const HALF = 18; // half the 36px chip
+  const place = (p) => { chip.style.left = `${p.x - HALF}px`; chip.style.top = `${p.y - HALF}px`; };
+  let pos = borrowCellCenter(lendCell);
+  place(pos);
+  chip.animate(
+    [{ transform: "scale(0)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+    { duration: 220, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+  );
+
+  let k = 1;
+  const hop = () => {
+    if (k >= ordered.length) {
+      // Landed on the borrower (already marked, e.g. "12") — fade the chip into it.
+      chip.animate(
+        [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.6)" }],
+        { duration: 240, easing: "ease-in", fill: "forwards" }
+      ).onfinish = () => { chip.remove(); done(); };
+      return;
+    }
+    const s = ordered[k++];
+    const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
+    if (!cell) { hop(); return; }
+    const to = borrowCellCenter(cell);
+    const from = pos;
+    const apexY = Math.min(from.y, to.y) - 26;
+    chip.animate(
+      [
+        { left: `${from.x - HALF}px`, top: `${from.y - HALF}px` },
+        { left: `${(from.x + to.x) / 2 - HALF}px`, top: `${apexY - HALF}px`, offset: 0.5 },
+        { left: `${to.x - HALF}px`, top: `${to.y - HALF}px` },
+      ],
+      { duration: 340, easing: "cubic-bezier(0.4,0,0.4,1)", fill: "forwards" }
+    ).onfinish = () => {
+      pos = to; place(to);
+      markBorrowCell(sec, s); // 0 → 9 (passed-through) or V → V+10 (borrower)
+      setTimeout(hop, 110);
+    };
+  };
+  setTimeout(hop, 360); // let the lift-off + lender's new value read first
+}
+
 export function animateBorrowChain(sec, steps) {
   return new Promise((resolve) => {
     if (!steps || !steps.length) { resolve(); return; }
     sfx.borrowWhoosh();
-    const SVG_NS = "http://www.w3.org/2000/svg";
-    let i = 0;
-    const playStep = () => {
-      if (i >= steps.length) { setTimeout(resolve, 350); return; }
-      const s = steps[i++];
-      const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
-      if (cell) {
-        // A digit can regroup twice: lent-from by a lower column (6→5), then
-        // borrowed-into for itself (5→15). Clear any prior strike + mark first
-        // so the column shows only its latest value — never two stacked at once.
-        cell.querySelectorAll(".strike, .regroup-mark").forEach((el) => el.remove());
 
-        const strike = document.createElement("div");
-        strike.className = "strike";
-        const svg = document.createElementNS(SVG_NS, "svg");
-        svg.setAttribute("viewBox", "0 0 100 120");
-        svg.setAttribute("preserveAspectRatio", "none");
-        const line = document.createElementNS(SVG_NS, "line");
-        line.setAttribute("x1", "16"); line.setAttribute("y1", "98");
-        line.setAttribute("x2", "84"); line.setAttribute("y2", "22");
-        line.setAttribute("stroke", "#E07B2E");
-        line.setAttribute("stroke-width", "7");
-        line.setAttribute("stroke-linecap", "round");
-        svg.appendChild(line);
-        strike.appendChild(svg);
-        cell.appendChild(strike);
+    // Split the flat step list into borrow chains. analyzeColumnsSub emits, per
+    // borrow: through* (the zeros it passes), lend (first non-zero), receive (the
+    // borrower) — so each "receive" terminates a chain.
+    const chains = [];
+    let cur = [];
+    for (const s of steps) {
+      cur.push(s);
+      if (s.kind === "receive") { chains.push(cur); cur = []; }
+    }
+    if (cur.length) chains.push(cur); // defensive: shouldn't happen
 
-        const mark = document.createElement("div");
-        mark.className = "regroup-mark";
-        mark.textContent = String(s.to);
-        cell.appendChild(mark);
-        mark.animate(
-          [{ opacity: 0, transform: "translateX(-50%) scale(0.4)" },
-           { opacity: 1, transform: "translateX(-50%) scale(1)" }],
-          { duration: 450, easing: "cubic-bezier(0.45,0.05,0.25,1)", fill: "forwards" }
-        );
-      }
-      setTimeout(playStep, 560);
+    let ci = 0;
+    const nextChain = () => {
+      if (ci >= chains.length) { setTimeout(resolve, 300); return; }
+      // Sort each chain by column DESCENDING so the "1" travels from the lender
+      // (left) rightward to the borrower (right).
+      const ordered = chains[ci++].slice().sort((a, b) => b.col - a.col);
+      playBorrowTravel(sec, ordered, () => setTimeout(nextChain, 140));
     };
-    playStep();
+    nextChain();
   });
 }
 

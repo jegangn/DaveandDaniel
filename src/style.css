@@ -288,6 +288,16 @@ button {
   z-index: 500;
 }
 .borrow-chip { background: var(--world-accent); }
+/* Travelling borrow "1": the unit taken from the lender digit, gliding right to
+   the column that needs it during the col-sub regroup pre-pass. */
+.borrow-travel {
+  position: fixed; z-index: 9;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #E07B2E; color: #FFF7EC; border: 2px solid var(--ink);
+  font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; box-shadow: 0 3px 8px rgba(0,0,0,.35);
+}
 .carry-slot {
   position: absolute; width: 60px; height: 60px;
   border-radius: var(--r-md);

@@ -300,6 +300,16 @@ button {
   z-index: 500;
 }
 .borrow-chip { background: var(--world-accent); }
+/* Travelling borrow "1": the unit taken from the lender digit, gliding right to
+   the column that needs it during the col-sub regroup pre-pass. */
+.borrow-travel {
+  position: fixed; z-index: 9;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #E07B2E; color: #FFF7EC; border: 2px solid var(--ink);
+  font-family: 'Chakra Petch', 'Lilita One', system-ui; font-weight: 700; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; box-shadow: 0 3px 8px rgba(0,0,0,.35);
+}
 .carry-slot {
   position: absolute; width: 60px; height: 60px;
   border-radius: var(--r-md);
@@ -3205,6 +3215,102 @@ button {
       }, 2300);
     });
   }
+  var BORROW_SVG_NS = "http://www.w3.org/2000/svg";
+  function markBorrowCell(sec, s) {
+    const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
+    if (!cell) return null;
+    cell.querySelectorAll(".strike, .regroup-mark").forEach((el) => el.remove());
+    const strike = document.createElement("div");
+    strike.className = "strike";
+    const svg = document.createElementNS(BORROW_SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 100 120");
+    svg.setAttribute("preserveAspectRatio", "none");
+    const line = document.createElementNS(BORROW_SVG_NS, "line");
+    line.setAttribute("x1", "16");
+    line.setAttribute("y1", "98");
+    line.setAttribute("x2", "84");
+    line.setAttribute("y2", "22");
+    line.setAttribute("stroke", "#E07B2E");
+    line.setAttribute("stroke-width", "7");
+    line.setAttribute("stroke-linecap", "round");
+    svg.appendChild(line);
+    strike.appendChild(svg);
+    cell.appendChild(strike);
+    const mark = document.createElement("div");
+    mark.className = "regroup-mark";
+    mark.textContent = String(s.to);
+    cell.appendChild(mark);
+    mark.animate(
+      [
+        { opacity: 0, transform: "translateX(-50%) scale(0.4)" },
+        { opacity: 1, transform: "translateX(-50%) scale(1)" }
+      ],
+      { duration: 320, easing: "cubic-bezier(0.45,0.05,0.25,1)", fill: "forwards" }
+    );
+    return cell;
+  }
+  var borrowCellCenter = (cell) => {
+    const r = cell.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+  function playBorrowTravel(sec, ordered, done) {
+    const lendCell = markBorrowCell(sec, ordered[0]);
+    if (!lendCell) {
+      done();
+      return;
+    }
+    const chip = document.createElement("div");
+    chip.className = "borrow-travel";
+    chip.textContent = "1";
+    document.body.appendChild(chip);
+    const HALF = 18;
+    const place = (p) => {
+      chip.style.left = `${p.x - HALF}px`;
+      chip.style.top = `${p.y - HALF}px`;
+    };
+    let pos = borrowCellCenter(lendCell);
+    place(pos);
+    chip.animate(
+      [{ transform: "scale(0)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }],
+      { duration: 220, easing: "cubic-bezier(0.34,1.6,0.5,1)", fill: "forwards" }
+    );
+    let k = 1;
+    const hop = () => {
+      if (k >= ordered.length) {
+        chip.animate(
+          [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.6)" }],
+          { duration: 240, easing: "ease-in", fill: "forwards" }
+        ).onfinish = () => {
+          chip.remove();
+          done();
+        };
+        return;
+      }
+      const s = ordered[k++];
+      const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
+      if (!cell) {
+        hop();
+        return;
+      }
+      const to = borrowCellCenter(cell);
+      const from = pos;
+      const apexY = Math.min(from.y, to.y) - 26;
+      chip.animate(
+        [
+          { left: `${from.x - HALF}px`, top: `${from.y - HALF}px` },
+          { left: `${(from.x + to.x) / 2 - HALF}px`, top: `${apexY - HALF}px`, offset: 0.5 },
+          { left: `${to.x - HALF}px`, top: `${to.y - HALF}px` }
+        ],
+        { duration: 340, easing: "cubic-bezier(0.4,0,0.4,1)", fill: "forwards" }
+      ).onfinish = () => {
+        pos = to;
+        place(to);
+        markBorrowCell(sec, s);
+        setTimeout(hop, 110);
+      };
+    };
+    setTimeout(hop, 360);
+  }
   function animateBorrowChain(sec, steps) {
     return new Promise((resolve) => {
       if (!steps || !steps.length) {
@@ -3212,48 +3318,26 @@ button {
         return;
       }
       sfx.borrowWhoosh();
-      const SVG_NS = "http://www.w3.org/2000/svg";
-      let i = 0;
-      const playStep = () => {
-        if (i >= steps.length) {
-          setTimeout(resolve, 350);
+      const chains = [];
+      let cur = [];
+      for (const s of steps) {
+        cur.push(s);
+        if (s.kind === "receive") {
+          chains.push(cur);
+          cur = [];
+        }
+      }
+      if (cur.length) chains.push(cur);
+      let ci = 0;
+      const nextChain = () => {
+        if (ci >= chains.length) {
+          setTimeout(resolve, 300);
           return;
         }
-        const s = steps[i++];
-        const cell = sec.querySelector(`.col-ws .cell[data-rtl="${s.col}"]`);
-        if (cell) {
-          cell.querySelectorAll(".strike, .regroup-mark").forEach((el) => el.remove());
-          const strike = document.createElement("div");
-          strike.className = "strike";
-          const svg = document.createElementNS(SVG_NS, "svg");
-          svg.setAttribute("viewBox", "0 0 100 120");
-          svg.setAttribute("preserveAspectRatio", "none");
-          const line = document.createElementNS(SVG_NS, "line");
-          line.setAttribute("x1", "16");
-          line.setAttribute("y1", "98");
-          line.setAttribute("x2", "84");
-          line.setAttribute("y2", "22");
-          line.setAttribute("stroke", "#E07B2E");
-          line.setAttribute("stroke-width", "7");
-          line.setAttribute("stroke-linecap", "round");
-          svg.appendChild(line);
-          strike.appendChild(svg);
-          cell.appendChild(strike);
-          const mark = document.createElement("div");
-          mark.className = "regroup-mark";
-          mark.textContent = String(s.to);
-          cell.appendChild(mark);
-          mark.animate(
-            [
-              { opacity: 0, transform: "translateX(-50%) scale(0.4)" },
-              { opacity: 1, transform: "translateX(-50%) scale(1)" }
-            ],
-            { duration: 450, easing: "cubic-bezier(0.45,0.05,0.25,1)", fill: "forwards" }
-          );
-        }
-        setTimeout(playStep, 560);
+        const ordered = chains[ci++].slice().sort((a, b) => b.col - a.col);
+        playBorrowTravel(sec, ordered, () => setTimeout(nextChain, 140));
       };
-      playStep();
+      nextChain();
     });
   }
   function tapBlock(blockEl, count) {
