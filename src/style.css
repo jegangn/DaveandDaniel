@@ -1431,6 +1431,27 @@ button {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 .lm-ws .regroup-mark { font-size: 26px; }
+/* BUILDSUM — the active partial column's answer box (filled via the floating
+   card, not dropped on directly) + the floating "build the sum" card itself. */
+.lm-ws .slot.active-col { border-style: dashed; border-color: var(--world-primary); opacity: 1; animation: slotPulseTight 1.8s var(--ease-soft) infinite; }
+.lm-ws .lm-work-gap { grid-column: 1 / -1; height: 60px; }
+.lm-work {
+  position: absolute; z-index: 8; white-space: nowrap;
+  background: var(--bg-card); border: 3px solid var(--ink); border-radius: var(--r-md);
+  padding: 4px 9px; display: flex; flex-direction: row; align-items: center; gap: 5px;
+  box-shadow: var(--sh-2);
+}
+.lm-work .lw-eq, .lm-work .lw-eqs { font-size: 26px; color: var(--ink); font-family: 'Chakra Petch','Lilita One',system-ui; font-weight: 700; line-height: 1; }
+.lm-work .lw-row { display: flex; gap: 4px; }
+.lm-work .lw-add { font-size: 24px; color: #EE6A00; font-family: 'Chakra Petch','Lilita One',system-ui; font-weight: 700; line-height: 1; }
+.lm-work .lwbox {
+  width: 34px; height: 42px; border: 3px dashed var(--ink-soft); border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: var(--ink); font-family: 'Chakra Petch','Lilita One',system-ui; font-weight: 700;
+}
+.lm-work .lwbox.active { border-style: solid; border-color: var(--world-primary); animation: slotPulseTight 1.8s var(--ease-soft) infinite; }
+.lm-work .lwbox.filled { border-style: solid; border-color: var(--ink); }
+.lm-work .lwbox.flash-no { border-color: var(--gentle-no); animation: slotShake .3s var(--ease-elastic); }
 #stage[data-orient="portrait"] .lm-ws { --col-w: 64px; top: 50%; }
 #stage[data-orient="portrait"] .lm-ws .cell,
 #stage[data-orient="portrait"] .lm-ws .slot { height: 70px; font-size: 50px; line-height: 70px; }

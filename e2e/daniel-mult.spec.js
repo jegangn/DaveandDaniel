@@ -1,52 +1,66 @@
 import { test, expect } from '@playwright/test';
 import { unlockAll, goToLevel } from './helpers/math.js';
-import { analyzeLongMult, buildGroups } from '../src/logic-daniel.js';
+import { analyzeLongMult, analyzePartialWork } from '../src/logic-daniel.js';
 
-// Daniel · OP: OVERRIDE + CARRYOVER + CARRYORDER. The child fills every result
-// digit AND every carry, right-to-left, on each partial row and the final sum.
-// A result digit and the carry it produces ("write 4, carry 5") are one group
-// the child may fill in EITHER order, so each box is targeted by its own column
-// rather than "the single active box" — both boxes of a pair are active at once.
+// Daniel · OP: BUILDSUM. Each partial-product column is built as a little sum:
+// the child drags the product (e.g. 9×6=54), the carried "+4" is shown, then the
+// child drags the total (58); the total's ones digit drops into the partial row
+// and its tens digit carries left. The final addition row is entered the old way
+// (result digits + carries by column).
 
-function phasesOf(a, b) {
+function partialWorks(a, b) {
   const info = analyzeLongMult(a, b);
-  return info.needsSum
-    ? [['p0', info.partials[0]], ['p1', info.partials[1]], ['sum', info.sum]]
-    : [['p0', info.partials[0]]];
+  return info.partials.map((pp) => analyzePartialWork(a, pp.digit, pp.shift, info.N));
+}
+function sumSteps(a, b) {
+  const info = analyzeLongMult(a, b);
+  return info.needsSum ? info.sum.steps : [];
 }
 
-// Every drop step, tagged with the phase its box lives in.
-function dropSteps(a, b) {
-  return phasesOf(a, b).flatMap(([key, ph]) => ph.steps.map((s) => ({ ...s, phase: key })));
-}
-
-// The exact active box a step belongs to (result slot OR fillable carry cell).
-function boxSel(step) {
-  const kind = step.kind === 'carry' ? '.carry-cell.fillable' : '.slot';
-  return `.col-ws ${kind}.active[data-col="${step.col}"][data-phase="${step.phase}"]`;
-}
-
-async function dragDigit(page, digit, slotSel) {
-  const slot = page.locator(slotSel).first();
-  await slot.waitFor({ state: 'visible' });
+async function dragTo(page, digit, sel) {
+  const slot = page.locator(sel).first();
+  await slot.waitFor({ state: 'visible', timeout: 5000 });
   const tile = page.locator(`.tile[data-digit="${digit}"]`).first();
   await tile.waitFor({ state: 'visible' });
-  const tBox = await tile.boundingBox();
-  const sBox = await slot.boundingBox();
-  if (!tBox || !sBox) throw new Error(`missing tile ${digit} or active box ${slotSel}`);
-  await page.mouse.move(tBox.x + tBox.width / 2, tBox.y + tBox.height / 2);
+  const tb = await tile.boundingBox(), sb = await slot.boundingBox();
+  if (!tb || !sb) throw new Error(`missing tile ${digit} or target ${sel}`);
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
   await page.mouse.down();
-  await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2, { steps: 8 });
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2, { steps: 8 });
   await page.mouse.up();
 }
 
-async function solveLongMult(page) {
-  const prob = await page.locator('#screen-long-mult').getAttribute('data-problem'); // "56×74"
-  const [a, b] = prob.split('×').map(Number);
-  for (const step of dropSteps(a, b)) {
-    await dragDigit(page, step.value, boxSel(step));
-    await page.waitForTimeout(1000); // snap + re-render
+async function fillNumber(page, kind, numStr) {
+  for (let i = 0; i < numStr.length; i++) {
+    await dragTo(page, Number(numStr[i]), `.lm-work .lwbox.active[data-kind="${kind}"][data-i="${i}"]`);
+    await page.waitForTimeout(450);
   }
+}
+
+async function buildColumn(page, c) {
+  if (c.carryIn > 0) await fillNumber(page, 'product', String(c.product));
+  await fillNumber(page, 'total', String(c.total));
+  await page.waitForTimeout(320); // column → next column / phase transition
+}
+
+async function solveSum(page, a, b) {
+  for (const s of sumSteps(a, b)) {
+    const sel = s.kind === 'carry'
+      ? `.col-ws .carry-cell.fillable.active[data-col="${s.col}"]`
+      : `.col-ws .slot.active[data-col="${s.col}"]`;
+    await dragTo(page, s.value, sel);
+    await page.waitForTimeout(800);
+  }
+}
+
+async function solveLongMult(page) {
+  const prob = await page.locator('#screen-long-mult').getAttribute('data-problem');
+  const [a, b] = prob.split('×').map(Number);
+  for (const w of partialWorks(a, b)) {
+    for (const c of w.cols) await buildColumn(page, c);
+    await page.waitForTimeout(450); // bring-down + phase change
+  }
+  await solveSum(page, a, b);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -54,15 +68,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (let level = 1; level <= 5; level++) {
-  test(`OVERRIDE M${level}: solve all 5 problems (results + carries) → 3 stars`, async ({ page }) => {
-    test.setTimeout(240_000);
+  test(`OVERRIDE M${level}: build all 5 problems (sums + carries) → 3 stars`, async ({ page }) => {
+    test.setTimeout(300_000);
     await page.goto('/?profile=daniel');
     await unlockAll(page, 'daniel');
     await goToLevel(page, 'nmul', level, 'daniel');
     await expect(page.locator('#screen-long-mult')).toBeVisible({ timeout: 5000 });
 
     for (let i = 0; i < 5; i++) {
-      await page.waitForTimeout(i === 0 ? 300 : 700);
+      await page.waitForTimeout(i === 0 ? 400 : 700);
       await solveLongMult(page);
     }
 
@@ -74,69 +88,35 @@ for (let level = 1; level <= 5; level++) {
   });
 }
 
-test('OVERRIDE: carries are child-filled, not auto (a 2×2 problem)', async ({ page }) => {
-  test.setTimeout(60_000);
-  await page.goto('/?profile=daniel');
-  await unlockAll(page, 'daniel');
-  await goToLevel(page, 'nmul', 5, 'daniel'); // 2-digit × 2-digit
-  await expect(page.locator('#screen-long-mult')).toBeVisible({ timeout: 5000 });
-  await page.waitForTimeout(400);
-
-  // Fillable carry boxes exist for this problem, and none is pre-filled.
-  await expect(page.locator('.col-ws .carry-cell.fillable')).not.toHaveCount(0);
-  await expect(page.locator('.col-ws .carry-cell.fillable.filled')).toHaveCount(0);
-});
-
-// CARRYORDER — the headline change: a result digit and the carry it produces
-// may be entered in EITHER order. "9×6=54" → the child can drop the 5 first or
-// the 4 first. Both boxes of the pair are active at once; the carry no longer
-// has to wait for its result.
-test('CARRYORDER: the carry may be dropped before its result digit', async ({ page }) => {
+test('BUILDSUM: a carry column shows "product + carry" and the child builds the total', async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto('/?profile=daniel');
   await unlockAll(page, 'daniel');
 
-  // Re-roll until the first partial has a real write-and-carry pair (most do;
-  // a few like 42×1 don't). Each navigation re-seeds with a fresh problem.
-  let a, b, groups, pairIdx = -1;
-  for (let tries = 0; tries < 15; tries++) {
+  // Re-roll until the first partial has a write-and-carry column.
+  let a, b, work, carryIdx = -1;
+  for (let t = 0; t < 15; t++) {
     await goToLevel(page, 'nmul', 5, 'daniel');
     await expect(page.locator('#screen-long-mult')).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(300);
     const prob = await page.locator('#screen-long-mult').getAttribute('data-problem');
     [a, b] = prob.split('×').map(Number);
-    groups = buildGroups(analyzeLongMult(a, b).partials[0].steps);
-    pairIdx = groups.findIndex((g) => g.length === 2);
-    if (pairIdx >= 0) break;
+    const info = analyzeLongMult(a, b);
+    work = analyzePartialWork(a, info.partials[0].digit, info.partials[0].shift, info.N);
+    carryIdx = work.cols.findIndex((c) => c.carryIn > 0);
+    if (carryIdx >= 0) break;
   }
-  expect(pairIdx, 'a 2×2 partial with a carry pair').toBeGreaterThanOrEqual(0);
+  expect(carryIdx, 'a partial column with a carry').toBeGreaterThanOrEqual(0);
 
-  // Fill the leading single-step groups (results with no carry) in order.
-  for (let gi = 0; gi < pairIdx; gi++) {
-    const s = { ...groups[gi][0], phase: 'p0' };
-    await dragDigit(page, s.value, boxSel(s));
-    await page.waitForTimeout(1000);
-  }
+  // Build the columns up to the carry column.
+  for (let k = 0; k < carryIdx; k++) await buildColumn(page, work.cols[k]);
 
-  // buildSequence emits result first, then its carry — but BOTH are now active.
-  const result = { ...groups[pairIdx][0], phase: 'p0' };
-  const carry = { ...groups[pairIdx][1], phase: 'p0' };
-  await expect(page.locator(boxSel(result))).toHaveCount(1);
-  await expect(page.locator(boxSel(carry))).toHaveCount(1);
-
-  // Drop the CARRY first.
-  await dragDigit(page, carry.value, boxSel(carry));
-  await page.waitForTimeout(1000);
-  await expect(
-    page.locator(`.col-ws .carry-cell.fillable.filled[data-col="${carry.col}"][data-phase="p0"]`)
-  ).toHaveCount(1);
-  // Its result box is still waiting.
-  await expect(page.locator(boxSel(result))).toHaveCount(1);
-
-  // The result digit then completes the pair and the row advances.
-  await dragDigit(page, result.value, boxSel(result));
-  await page.waitForTimeout(1000);
-  await expect(
-    page.locator(`.col-ws .slot.filled[data-col="${result.col}"][data-phase="p0"]`)
-  ).toHaveCount(1);
+  const c = work.cols[carryIdx];
+  // The carry column shows the "+N" carried number and the product boxes first.
+  await expect(page.locator('.lm-work .lw-add')).toHaveText(`+${c.carryIn}`);
+  await expect(page.locator('.lm-work .lwbox.active[data-kind="product"]').first()).toBeVisible();
+  await fillNumber(page, 'product', String(c.product));
+  // Product is now shown; the TOTAL boxes become the active targets to build.
+  await expect(page.locator('.lm-work .lwbox.filled[data-kind="product"]')).toHaveCount(String(c.product).length);
+  await expect(page.locator('.lm-work .lwbox.active[data-kind="total"]').first()).toBeVisible();
 });
