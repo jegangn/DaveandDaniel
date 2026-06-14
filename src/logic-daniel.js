@@ -182,30 +182,6 @@ export function buildGroups(steps) {
   return groups;
 }
 
-// BUILDSUM — per-column "build the sum" work for one partial (a × d, shifted into
-// N grid columns). Walk a's digits LSB-first. Each column: product = topDigit×d,
-// total = product + carryIn, answer = total%10 (the partial-product digit at that
-// grid column), carryOut = ⌊total/10⌋ (the carry into the next column). A leading
-// carryOut after the last digit is brought down as the partial's leading digit.
-export function analyzePartialWork(a, d, shift, N) {
-  const aR = digitsOfN(a).reverse(); // LSB-first
-  const cols = [];
-  let carry = 0;
-  for (let k = 0; k < aR.length; k++) {
-    const product = aR[k] * d;
-    const total = product + carry;
-    const carryOut = Math.floor(total / 10);
-    cols.push({
-      k, col: (N - 1) - shift - k,
-      topDigit: aR[k], mult: d,
-      product, carryIn: carry, total, answer: total % 10, carryOut,
-    });
-    carry = carryOut;
-  }
-  const bringDown = carry > 0 ? { carry, col: (N - 1) - shift - aR.length } : null;
-  return { cols, bringDown };
-}
-
 // ----- Long multiplication ---------------------------------------------------
 // One partial product per multiplier digit (LSB-first → shift = its place).
 // `rowDigits` is what the kid writes for that row (a × digit); `value` is the

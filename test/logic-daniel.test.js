@@ -3,7 +3,7 @@ import {
   mulberry32, digitsOfN, createAnswerStateN, dropDigit, dropDigitLTR,
   analyzeColumnsAdd, analyzeColumnsSub, analyzeLongMult, analyzeShortDiv,
   getProblemsDaniel,
-  placeDigits, partialCarries, sumCarries, buildSequence, buildGroups, analyzePartialWork,
+  placeDigits, partialCarries, sumCarries, buildSequence, buildGroups,
 } from "../src/logic-daniel.js";
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i + 1);
@@ -379,30 +379,4 @@ test("buildGroups: pairs each result digit with the carry it produces", () => {
 
 test("buildGroups: empty sequence → no groups", () => {
   expect(buildGroups([])).toEqual([]);
-});
-
-// ===== OP: BUILDSUM — per-column product + carry = total ====================
-
-test("analyzePartialWork: product/carry/total per column (98×6, shift 1, N4)", () => {
-  const w = analyzePartialWork(98, 6, 1, 4);
-  expect(w.cols).toEqual([
-    { k: 0, col: 2, topDigit: 8, mult: 6, product: 48, carryIn: 0, total: 48, answer: 8, carryOut: 4 },
-    { k: 1, col: 1, topDigit: 9, mult: 6, product: 54, carryIn: 4, total: 58, answer: 8, carryOut: 5 },
-  ]);
-  expect(w.bringDown).toEqual({ carry: 5, col: 0 });
-});
-
-test("analyzePartialWork: answer digits + bringDown reconstruct the partial (98×4, shift 0, N4 → 392)", () => {
-  const w = analyzePartialWork(98, 4, 0, 4);
-  expect(w.cols.map((c) => ({ col: c.col, answer: c.answer }))).toEqual([
-    { col: 3, answer: 2 }, { col: 2, answer: 9 },
-  ]);
-  expect(w.bringDown).toEqual({ carry: 3, col: 1 });
-});
-
-test("analyzePartialWork: no carries anywhere → bringDown null (11×2, shift 0, N2)", () => {
-  const w = analyzePartialWork(11, 2, 0, 2);
-  expect(w.cols.map((c) => c.answer)).toEqual([2, 2]);
-  expect(w.cols.every((c) => c.carryIn === 0 && c.carryOut === 0)).toBe(true);
-  expect(w.bringDown).toBeNull();
 });
